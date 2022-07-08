@@ -1,10 +1,6 @@
-# RedPacket
+
 
 ## Introduction
-
-This project(`RedPacket` smart contract) is a Dapplet based on the Mask browser extension. Inspired by [Red Packet](https://en.wikipedia.org/wiki/Red_envelope). It enables you to put cryptocurrency tokens(ETH or ERC-20) into red packets and send them to your friends and family.
-
-Besides, Mask Network developed a new red packet for ERC721/NFT token.
 
 ## Getting Started
 
