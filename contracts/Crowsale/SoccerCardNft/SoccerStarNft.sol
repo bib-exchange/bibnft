@@ -40,8 +40,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         string name;
         string country;
         string position;
-        uint256 starLevel;//0=1star,1=2star,2=3star,3=4star
-        uint256 gradient;//梯度，T0=0.T1=1.T2=2,T3=3
+        uint256 starLevel;//0=1star, 1=2star, 2=3star, 3=4star
+        uint256 gradient;//梯度，T0=0, T1=1, T2=2, T3=3
     }
 
     SoccerStar soccerStars;
@@ -57,7 +57,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     uint256 public refundEndTime;
 
     address public refundAddress;
-    address public bibtokenAddr;
     uint256 public constant maxUserMintAmount = 5;
     bytes32 public merkleRoot;
 
