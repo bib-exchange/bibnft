@@ -72,7 +72,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
            paymentToken = IERC20MintableBurnable(_paymentToken);
     }
 
-    constructor() ERC721A("SoccerStar", "SS") {
+    constructor() ERC721A("SoccerStar", "SS", BATCH_SIZE, MAX_SUPPLY) {
         refundAddress = msg.sender;
         toggleRefundCountdown();
     }

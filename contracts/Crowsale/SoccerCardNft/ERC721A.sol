@@ -66,6 +66,9 @@ contract ERC721A is Context, ERC165, IERC721, IERC721Metadata {
     // The number of tokens burned.
     uint256 internal _burnCounter;
 
+    uint256 internal immutable collectionSize;
+    uint256 internal immutable maxBatchSize;
+
     // Token name
     string private _name;
 
@@ -85,10 +88,12 @@ contract ERC721A is Context, ERC165, IERC721, IERC721Metadata {
     // Mapping from owner to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
-    constructor(string memory name_, string memory symbol_) {
+    constructor(string memory name_, string memory symbol_, uint256 maxBatchSize_, uint256 collectionSize_) {
         _name = name_;
         _symbol = symbol_;
         _currentIndex = _startTokenId();
+        maxBatchSize = maxBatchSize_;
+        collectionSize = collectionSize_;
     }
 
     /**
