@@ -29,6 +29,9 @@ interface ISoccerStarNft {
 
     function ownerMint(uint256 quantity) external onlyOwner onlyWhenNotPaused;
 
+    //计算剩余mint的数量
+    function caculateRemaining() view public onlyOwner returns (uint256);
+
     function refund(uint256[] calldata tokenIds) external;
 
     function withdraw() external onlyOwner;

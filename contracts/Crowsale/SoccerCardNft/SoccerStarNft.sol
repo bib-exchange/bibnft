@@ -44,7 +44,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         uint256 gradient;//梯度，T0=0, T1=1, T2=2, T3=3
     }
 
-    SoccerStar soccerStars;
+    SoccerStar[] public soccerStars;
 
     modifier onlyWhenNotPaused {
         require(!_paused, "Contract currently paused");
@@ -63,7 +63,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
     mapping(uint256 => bool) public hasRefunded; // users can search if the NFT has been refunded
     mapping(uint256 => bool) public isOwnerMint; // if the NFT was freely minted by owner
-
+    mapping(uint256 => SoccerStar) public cardProperty;
+    
     string private baseURI;
 
     function initialize(uint256 _mintPrice,uint256 _refundPeriod,address _paymentToken) initializer public {
@@ -89,12 +90,14 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         mintPrice = _mintPrice;
     }
 
-    function setSoccerStars(string memory _name,string memory _country,string memory _position, uint256 _starLevel, uint256 _gradient) public onlyOwner {
-        soccerStars.name = _name;
-        soccerStars.country = _country;
-        soccerStars.position = _position;
-        soccerStars.starLevel = _starLevel;
-        soccerStars.gradient = _gradient;
+    function addSoccerStars(string memory _name,string memory _country,string memory _position, uint256 _starLevel, uint256 _gradient) public onlyOwner {
+        
+        soccerStars.push(SoccerStar(_name,_country,_position,_starLevel,_gradient));
+    }
+
+    //计算剩余mint的数量
+    function caculateRemaining() view public onlyOwner returns (uint256) {
+            return totalSupply() - _numberMinted(msg.sender);
     }
 
     function setRefundPeriod(uint256 _refundPeriod) public onlyOwner {
@@ -119,8 +122,11 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         require(_totalMinted() + quantity <= maxMintSupply, "Max mint supply");
 
         _safeMint(msg.sender, quantity);
+
+        //_currentIndex - quantity is tokenid
+        cardProperty[_currentIndex - quantity] = soccerStars[_currentIndex];
         
-         paymentToken.burnFrom(deadwallet, quantity);
+         paymentToken.burnFrom(deadwallet, quantity * mintPrice);
     }
 
     function publicSaleMint(uint256 quantity) external payable onlyWhenNotPaused {
@@ -136,7 +142,10 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         );
 
         _safeMint(msg.sender, quantity);
-        paymentToken.burnFrom(deadwallet, quantity);
+
+        cardProperty[_currentIndex - quantity] = soccerStars[_currentIndex];
+
+        paymentToken.burnFrom(deadwallet, quantity * mintPrice);
     }
 
     function ownerMint(uint256 quantity) external onlyOwner onlyWhenNotPaused {
@@ -145,7 +154,10 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             "Max mint supply reached"
         );
         _safeMint(msg.sender, quantity);
-        paymentToken.burnFrom(deadwallet, quantity);
+
+        cardProperty[_currentIndex - quantity] = soccerStars[_currentIndex];
+
+        paymentToken.burnFrom(deadwallet, quantity * mintPrice);
 
         for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
             isOwnerMint[i] = true;
