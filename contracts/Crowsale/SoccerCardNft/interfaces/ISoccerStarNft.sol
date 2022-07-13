@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.0;
 
-interface contract ISoccerStarNft {
+interface ISoccerStarNft {
 
     /**
      * @dev Check if the given address is qualified, implemented on demand.
