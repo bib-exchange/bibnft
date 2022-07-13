@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.0;
 
-abstract contract ISoccerStarNft {
+interface contract ISoccerStarNft {
 
     /**
      * @dev Check if the given address is qualified, implemented on demand.
@@ -32,12 +32,6 @@ abstract contract ISoccerStarNft {
     function refund(uint256[] calldata tokenIds) external;
 
     function withdraw() external onlyOwner;
-
-    function _isAllowlisted(
-        address _account,
-        bytes32[] calldata _proof,
-        bytes32 _root
-    ) internal pure returns (bool);
 
     function setBaseURI(string memory uri) external onlyOwner;
 

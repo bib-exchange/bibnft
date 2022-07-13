@@ -57,7 +57,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     uint256 public refundEndTime;
 
     address public refundAddress;
-    uint256 public constant maxUserMintAmount = 5;
+    uint256 public constant maxPresaleUserMintAmount = 2;
+    uint256 public constant maxPubicsaleUserMintAmount = 1;
     bytes32 public merkleRoot;
 
     mapping(uint256 => bool) public hasRefunded; // users can search if the NFT has been refunded
@@ -112,7 +113,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             "Not on allow list"
         );
         require(
-            _numberMinted(msg.sender) + quantity <= maxUserMintAmount,
+            _numberMinted(msg.sender) + quantity <= maxPresaleUserMintAmount,
             "Max amount"
         );
         require(_totalMinted() + quantity <= maxMintSupply, "Max mint supply");
@@ -126,7 +127,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         require(publicSaleActive, "Public sale is not active");
         require(msg.value >= quantity * mintPrice, "Not enough eth sent");
         require(
-            _numberMinted(msg.sender) + quantity <= maxUserMintAmount,
+            _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
             "Over mint limit"
         );
         require(
