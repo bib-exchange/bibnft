@@ -57,6 +57,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     uint256 public refundEndTime;
 
     address public refundAddress;
+    uint256 public remainingMint;
+    uint256 public alreadyMint;
     uint256 public constant maxPresaleUserMintAmount = 2;
     uint256 public constant maxPubicsaleUserMintAmount = 1;
     bytes32 public merkleRoot;
@@ -77,6 +79,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     constructor() ERC721A("SoccerStar", "SS", BATCH_SIZE, MAX_SUPPLY) {
         refundAddress = msg.sender;
         toggleRefundCountdown();
+        remainingMint = totalSupply() - _numberMinted(msg.sender);
+        alreadyMint = _numberMinted(msg.sender);
     }
 
     /**
