@@ -213,7 +213,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
         _safeMint(msg.sender, quantity);
 
-        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
+        emit UpdatesSaleStep(msg.sender, BlindBoxesType.presale, _currentIndex - quantity, quantity);
 
         //_currentIndex - quantity is tokenid for
 
@@ -221,7 +221,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             cardProperty[i] = soccerStars[_currentIndex];
         }
 
-        emit 
         // EVENT：sender,presale,_currentIndex - quantity,quantitty，ramdomseed
          paymentToken.burnFrom(deadwallet, quantity * mintPrice);
     }
