@@ -114,6 +114,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     mapping(uint256 => SoccerStar) public cardProperty;
     mapping(address => SoccerStar[]) public userCardWallet;
 
+    event UpdatesSaleStep(address newAddress, BlindBoxesType blindBoxes, uint256 tokenId, uint256 quantity);
+
     string private baseURI;
 
     modifier callerIsUser() {
@@ -193,6 +195,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         external
         payable
         onlyWhenNotPaused
+        callerIsUser
     {
         require(presaleActive, "Presale is not active");
         require(currentTime() >= preSaleStartTime, "Whitelist Sale has not started yet");
@@ -210,16 +213,20 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
         _safeMint(msg.sender, quantity);
 
+        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
+
         //_currentIndex - quantity is tokenid for
 
         for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
             cardProperty[i] = soccerStars[_currentIndex];
         }
+
+        emit 
         // EVENT：sender,presale,_currentIndex - quantity,quantitty，ramdomseed
          paymentToken.burnFrom(deadwallet, quantity * mintPrice);
     }
 
-    function publicSaleMintRound1(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused {
+    function publicSaleMintRound1(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser {
         require(publicSaleActive, "Public sale is not active");
         require(currentTime() >= saleStartTimeRound1, "public Sale round1 has not started yet");
         require(currentTime() < saleStartTimeRound1 + 1 days, "public Sale round1 Sale is finished");
@@ -240,6 +247,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             return _safeMint(msg.sender, quantity);
         }
 
+        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
+
         for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
             cardProperty[i] = soccerStars[_currentIndex];
         }
@@ -247,7 +256,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         paymentToken.burnFrom(deadwallet, quantity * mintPrice);
     }
 
-    function publicSaleMintRound2(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused {
+    function publicSaleMintRound2(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser {
         require(publicSaleActive, "Public sale is not active");
         require(msg.value >= quantity * mintPrice, "Not enough eth sent");
         require(currentTime() >= saleStartTimeRound2, "public Sale round2 has not started yet");
@@ -269,6 +278,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             return _safeMint(msg.sender, quantity);
         }
 
+        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
+
           for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
             cardProperty[i] = soccerStars[_currentIndex];
         }
@@ -277,7 +288,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
        
     }
 
-    function publicSaleMintRound3(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused {
+    function publicSaleMintRound3(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser {
         require(publicSaleActive, "Public sale is not active");
         require(currentTime() >= saleStartTimeRound3, "public Sale round3 has not started yet");
         require(currentTime() < saleStartTimeRound3 + 1 days, "public Sale round3 Sale is finished");
@@ -302,6 +313,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             return _safeMint(msg.sender, quantity);
         }
 
+        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
+
         for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
             cardProperty[i] = soccerStars[_currentIndex];
         }
@@ -310,7 +323,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     }
 
 
-    function publicSaleMintRound4(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused {
+    function publicSaleMintRound4(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser {
         require(publicSaleActive, "Public sale is not active");
         require(currentTime() >= saleStartTimeRound4, "public Sale round4 has not started yet");
         require(currentTime() < saleStartTimeRound4 + 1 days, "public Sale round4 Sale is finished");
@@ -331,6 +344,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             return _safeMint(msg.sender, quantity);
         }
 
+        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
+
         for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
             cardProperty[i] = soccerStars[_currentIndex];
         }
@@ -338,7 +353,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         paymentToken.burnFrom(deadwallet, quantity * mintPrice);
     }
 
-    function publicSaleMintRound5(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused {
+    function publicSaleMintRound5(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser {
         require(publicSaleActive, "Public sale is not active");
         require(currentTime() >= saleStartTimeRound5, "public Sale round5 has not started yet");
         require(currentTime() < saleStartTimeRound5 + 1 days, "public Sale round5 Sale is finished");
@@ -359,6 +374,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             return _safeMint(msg.sender, quantity);
         }
 
+        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
+        
         for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
             cardProperty[i] = soccerStars[_currentIndex];
         }
