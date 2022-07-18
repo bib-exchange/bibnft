@@ -28,7 +28,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     uint256 public constant maxMintSupply = 29930;
     uint256 public mintPrice;
     uint256 public refundPeriod;
-    bool isReveal;
+    string public provenance;
+    
     IERC20MintableBurnable public paymentToken;
 
     uint private constant MAX_PRESALE = 4800;
@@ -59,6 +60,11 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
     // _paused is used to pause the contract in case of an emergency
     bool public _paused;
+    bool isMetadataFrozen;
+
+    error ReadOnly();
+    error BadInput();
+    error AlreadyRevealed();
 
     enum Step {
         preSaleMint,
@@ -90,6 +96,33 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         uint256 gradient;//T0=0, T1=1, T2=2, T3=3
     }
 
+    struct Phase {
+        bool isRevealed;
+        uint256 firstTokenId;
+        uint256 lastTokenId;
+        uint256 offset;
+    }
+    Phase[] phases;
+
+    function setPhases(uint256 total, uint256[] calldata ids)
+        external
+        onlyOwner
+    {
+        if (phases.length != 0) revert ReadOnly();
+        if (total * 2 != ids.length) revert BadInput();
+
+        for (uint256 i = 0; i < total; i++) {
+            phases.push(
+                Phase({
+                    isRevealed: false,
+                    firstTokenId: ids[i * 2],
+                    lastTokenId: ids[i * 2 + 1],
+                    offset: 0
+                })
+            );
+        }
+    }
+
     SoccerStar[] public soccerStars;
 
     modifier onlyWhenNotPaused {
@@ -115,6 +148,10 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     mapping(address => SoccerStar[]) public userCardWallet;
 
     event UpdatesSaleStep(address newAddress, BlindBoxesType blindBoxes, uint256 tokenId, uint256 quantity);
+    event ProvenanceUpdated(string indexed provenance);
+    event MetadataRevealed(uint256 phase);
+    event BaseURIUpdated(string indexed baseURI);
+     event MetadataFrozen();
 
     string private baseURI;
 
@@ -136,6 +173,37 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         toggleRefundCountdown();
         remainingMint = totalSupply() - _numberMinted(msg.sender);
         alreadyMint = _numberMinted(msg.sender);
+    }
+
+    function setProvenance(string calldata _provenance) external onlyOwner {
+        if (bytes(provenance).length != 0) revert ReadOnly();
+        provenance = _provenance;
+        emit ProvenanceUpdated(_provenance);
+    }
+
+    function reveal(uint256 phaseId, string calldata randomSeed)
+        external
+        onlyOwner
+    {
+        if (phases[phaseId].isRevealed) revert AlreadyRevealed();
+        for (uint256 i = 0; i < phaseId; i++) {
+            if (!phases[i].isRevealed) revert BadInput();
+        }
+
+        uint256 randomness = uint256(keccak256(abi.encode(randomSeed)));
+        uint256 offset = randomness %
+            (phases[phaseId].lastTokenId - phases[phaseId].firstTokenId + 1);
+        if (offset == 0) offset += 42;
+        phases[phaseId].offset = offset;
+        phases[phaseId].isRevealed = true;
+        emit MetadataRevealed(phaseId);
+    }
+
+    function freeze() external onlyOwner {
+        if (!isMetadataFrozen) {
+            isMetadataFrozen = true;
+            emit MetadataFrozen();
+        }
     }
 
     /**
@@ -442,15 +510,50 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         return 1;
     }
 
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        virtual
+        override
+        returns (string memory)
+    {
+        require(
+            _exists(tokenId),
+            "ERC721Metadata: URI query for nonexistent token"
+        );
 
-    function tokenURI(uint _tokenId) public view virtual override returns (string memory) {
-        require(_exists(_tokenId), "URI query for nonexistent token");
-
-        return string(abi.encodePacked(baseURI, _tokenId.toString(), ".json"));
+        string memory baseURI = _baseURI();
+        return
+            bytes(baseURI).length > 0
+                ? string(
+                    abi.encodePacked(
+                        baseURI,
+                        _revealedTokenId(tokenId).toString(),
+                        ".json"
+                    )
+                )
+                : "";
     }
 
     function _baseURI() internal view override returns (string memory) {
         return baseURI;
+    }
+
+    function _revealedTokenId(uint256 tokenId)
+        internal
+        view
+        returns (uint256)
+    {
+        for (uint256 i = 0; i < phases.length; i++) {
+            if (tokenId <= phases[i].lastTokenId) {
+                if (!phases[i].isRevealed) return 0;
+                return
+                    ((tokenId + phases[i].offset) %
+                        (phases[i].lastTokenId - phases[i].firstTokenId + 1)) +
+                    phases[i].firstTokenId;
+            }
+        }
+        return 0;
     }
 
     function setRefundAddress(address _refundAddress) external onlyOwner {
@@ -462,7 +565,9 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     }
 
     function setBaseURI(string memory uri) external onlyOwner {
+        if (isMetadataFrozen) revert ReadOnly();
         baseURI = uri;
+        emit BaseURIUpdated(uri);
     }
 
     function toggleRefundCountdown() public onlyOwner {
@@ -479,6 +584,21 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
     function _leaf(address _account) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(_account));
+    }
+
+    function withdraw(address payable recipient, uint256 amount)
+        external
+        onlyOwner
+    {
+        recipient.transfer(amount);
+    }
+
+    function withdraw(
+        address recipient,
+        address erc20,
+        uint256 amount
+    ) external onlyOwner {
+        IERC20(erc20).transfer(recipient, amount);
     }
 
     function _isAllowlisted(
