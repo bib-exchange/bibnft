@@ -44,13 +44,8 @@ interface ISoccerStarNft {
 
     function setBaseURI(string memory uri) external onlyOwner;
 
-    function reveal(uint256 phaseId, string calldata randomSeed)
-        external
-        onlyOwner;
+    function reveal(uint256 tokenID, string memory _name,string memory _country,string memory _position, uint256 _starLevel, uint256 _gradient) public onlyOwner
 
-    function setPhases(uint256 total, uint256[] calldata ids)
-        external
-        onlyOwner;
 
     function refund(uint256[] calldata tokenIds) external;
 
