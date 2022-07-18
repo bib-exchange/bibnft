@@ -438,6 +438,11 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         Address.sendValue(payable(owner()), balance);
     }
 
+    function _startTokenId() internal view virtual override returns (uint256) {
+        return 1;
+    }
+
+
     function tokenURI(uint _tokenId) public view virtual override returns (string memory) {
         require(_exists(_tokenId), "URI query for nonexistent token");
 
