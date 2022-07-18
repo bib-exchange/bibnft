@@ -54,6 +54,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     uint256 public    saleStartTimeRound3 = 1664812800;//10月4日0时0分0秒
     uint256 public    saleStartTimeRound4 = 1665417600;//10月11日0时0分0秒
     uint256 public    saleStartTimeRound5 = 1666022400;//10月18日0时0分0秒
+    uint256 public    revealTime = 1666022400;//10月18日0时0分0秒
 
     address public deadwallet = 0x0000000000000000000000000000000000000000;//将代币打进这个地址就是销毁
 
@@ -143,6 +144,10 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
      */
     function setPaused(bool val) public onlyOwner {
         _paused = val;
+    }
+
+    function setRevealTime(uint _revealTime) external onlyOwner {
+        revealTime = _revealTime;
     }
 
     function setPreSaleStartTime(uint _preSaleStartTime) external onlyOwner {
