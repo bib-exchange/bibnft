@@ -23,14 +23,26 @@ interface ISoccerStarNft {
     function preSaleMint(uint256 quantity, bytes32[] calldata proof)
         external
         payable
-        onlyWhenNotPaused;
+        onlyWhenNotPaused
+        callerIsUser;
+
+    function publicSaleMintRound1(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser;
+
+    function publicSaleMintRound2(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser;
+
+    function publicSaleMintRound3(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser;
+
+    function publicSaleMintRound4(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser;
+
+    function publicSaleMintRound5(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser
 
     function publicSaleMint(uint256 quantity) external payable onlyWhenNotPaused;
 
     function ownerMint(uint256 quantity) external onlyOwner onlyWhenNotPaused;
 
-    //计算剩余mint的数量
-    function caculateRemaining() view public onlyOwner returns (uint256);
+    function tokenURI(uint _tokenId) public view virtual override returns (string memory);
+
+    function setBaseURI(string memory uri) external onlyOwner;
 
     function refund(uint256[] calldata tokenIds) external;
 
