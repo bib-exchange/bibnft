@@ -193,23 +193,21 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         mintPresalePrice = _mintPrice;
     }
 
-    function setMintSale1Price(uint256 _mintPrice1, BlindBoxesType _blindBoxes) public onlyOwner {
-         if (_blindBoxes == BlindBoxesType.normal) {
+    function setMintSale1Price(uint256 _mintPrice, BlindBoxesType _blindBoxes,uint round) public onlyOwner {
 
-            mintSale1Price = _mintPrice1;
+        if (round == 1) {
+           if (_blindBoxes == BlindBoxesType.normal) {
+
+            mintSale1Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.supers) {
            
-            mintSale1Price = _mintPrice1;
+            mintSale1Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.legend){
             
-            mintSale1Price = _mintPrice1;
+            mintSale1Price = _mintPrice;
         }
-    }
-
-    function setMintSale2Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
-        
-
-        if (_blindBoxes == BlindBoxesType.normal) {
+        } else if (round == 2) {      
+           if (_blindBoxes == BlindBoxesType.normal) {
 
             mintSale2Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.supers) {
@@ -219,10 +217,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             
             mintSale2Price = _mintPrice;
         }
-    }
-
-    function setMintSale3Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
-          if (_blindBoxes == BlindBoxesType.normal) {
+        } else if (round == 3){     
+           if (_blindBoxes == BlindBoxesType.normal) {
 
             mintSale3Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.supers) {
@@ -232,12 +228,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             
             mintSale3Price = _mintPrice;
         }
-    }
-
-    function setMintSale4Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
-        
-
-          if (_blindBoxes == BlindBoxesType.normal) {
+        } else if (round == 4){
+           if (_blindBoxes == BlindBoxesType.normal) {
 
             mintSale4Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.supers) {
@@ -247,12 +239,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             
             mintSale4Price = _mintPrice;
         }
-    }
-
-    function setMintSale5Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
-        
-
-         if (_blindBoxes == BlindBoxesType.normal) {
+        } else if (round == 5) {
+           if (_blindBoxes == BlindBoxesType.normal) {
 
             mintSale4Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.supers) {
@@ -262,6 +250,30 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             
             mintSale4Price = _mintPrice;
         }
+        }
+         
+    }
+
+    function setMintSale2Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+        
+
+        
+    }
+
+    function setMintSale3Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+          
+    }
+
+    function setMintSale4Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+        
+
+          
+    }
+
+    function setMintSale5Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+        
+
+         
     }
 
 
