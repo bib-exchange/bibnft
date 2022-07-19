@@ -10,14 +10,14 @@ import {SafeMath} from "../libs/SafeMath.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {IStakedSoccerStarNft} from "../interfaces/IStakedSoccerStarNft.sol";
 
-contract StakedSoccerStarNft is Ownable {
+contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
     using SafeMath for uint;
 
     event FrozenDurationChanged(uint oldValue, uint newValue);
     event RewardPeriodChanged(uint oldValue, uint newValue);
     event RewardStartChanged(uint oldValue, uint newValue);
-    event RewardContractChanged(uint oldValue, uint newValue);
-    event NftContractChanged(uint oldValue, uint newValue);
+    event RewardContractChanged(address oldValue, address newValue);
+    event NftContractChanged(address oldValue, address newValue);
 
     IERC20 public rewardContract;
     IERC721 public nftContract;
@@ -44,8 +44,8 @@ contract StakedSoccerStarNft is Ownable {
         uint _rewardPeriod,
         uint _rewardStart
         ){
-        rewardContract = _rewardContract;
-        nftContract = _nftContract;
+        rewardContract = IERC20(_rewardContract);
+        nftContract = IERC721(_nftContract);
         rewardPeriod = _rewardPeriod;
         rewardStart = _rewardStart;
     }
@@ -61,36 +61,36 @@ contract StakedSoccerStarNft is Ownable {
         _;
     }
 
-   function setFrozenDuration(uint newValue) onlyOwner {
+   function setFrozenDuration(uint newValue) public onlyOwner {
         emit FrozenDurationChanged(frozenDuration, newValue);
         frozenDuration = newValue;
     }
 
-    function setRewardPeroid(uint newValue) onlyOwner {
+    function setRewardPeroid(uint newValue) public onlyOwner {
         require(newValue >= 1 days,  "REWARD_PERIOD_TOO_SHORT");
         emit RewardPeriodChanged(rewardPeriod, newValue);
         rewardPeriod = newValue;
     }
 
-    function setRewardStart(uint newValue) onlyOwner {
+    function setRewardStart(uint newValue) public onlyOwner {
         require(newValue >= block.timestamp, "REWARD_START_LESS_THAN_CURRENT");
         emit RewardStartChanged(rewardStart, newValue);
         rewardStart = newValue;
     }
 
-    function setRewardContract(address newValue) onlyOwner onlyContract(newValue){
-        emit RewardContractChanged(rewardContract, newValue);
+    function setRewardContract(address newValue) public onlyOwner onlyContract(newValue){
+        emit RewardContractChanged(address(rewardContract), newValue);
         rewardContract = IERC20(newValue);
     }
 
-    function setNftContract(address newValue) onlyOwner onlyContract(newValue){
-        emit NftContractChanged(nftContract, newValue);
+    function setNftContract(address newValue) public onlyOwner onlyContract(newValue){
+        emit NftContractChanged(address(nftContract), newValue);
         nftContract = IERC721(newValue);
     }
 
       // deposit a specified funds to pool
     function deposit(uint amount) public override {
-        require(amout > 0, "AMOUNT_TOOL_SMALL");
+        require(amount > 0, "AMOUNT_TOOL_SMALL");
         
         (bool hasRound, uint round, DepositInfo memory roundInfo) = checkAndGetRound();
         if(!hasRound || (round > roundInfo.round)){
@@ -101,7 +101,7 @@ contract StakedSoccerStarNft is Ownable {
 
             DepositInfo memory depositInfo = DepositInfo({
                 round:round,
-                totalDeposit:amuont,
+                totalDeposit:amount,
                 totalStaked:0,
                 totalPower:0,
                 totalClaimed:0
@@ -122,12 +122,13 @@ contract StakedSoccerStarNft is Ownable {
         return block.timestamp.sub(rewardStart).div(rewardPeriod);
     }
 
-    function checkAndGetRound() public returns(uint, uint, DepositInfo memory){
+    function checkAndGetRound() public view returns(bool, uint, DepositInfo memory){
+        DepositInfo memory roundInfo;
         if(depositInfos.length <= 0){
-            return (false, 0, DepositInfo({round:0,totalDeposit:0,totalStaked:0}));
+            return (false, 0, roundInfo);
         }
         uint round = getCurrentRound();
-        DepositInfo storage roundInfo = depositInfos[depositInfos.length - 1];
+        roundInfo = depositInfos[depositInfos.length - 1];
         require(round >= roundInfo.round, "INVALID_ROUND");
         return (true, round, roundInfo);
     }
@@ -198,7 +199,7 @@ contract StakedSoccerStarNft is Ownable {
     }
 
     function getTokenPower(uint tokenId) public view returns(uint power){
-        ISoccerStarNft.SoccerStar memory cardInfo = ISoccerStarNft(nftContract).getCardProperty(tokenId);
+        ISoccerStarNft.SoccerStar memory cardInfo = ISoccerStarNft(address(nftContract)).getCardProperty(tokenId);
         require(0 != cardInfo.starLevel, "CARD_UNREAL");
         // The power equation: power = gradient * 10 ^ (starLevel -1)
         return cardInfo.gradient.exp(cardInfo.starLevel.sub(1));
@@ -235,7 +236,7 @@ contract StakedSoccerStarNft is Ownable {
         }
         userStakedInfos.pop();
 
-        emit Reem(msg.sender, tokenId);
+        emit Redeem(msg.sender, tokenId);
     }
 
     // withdraw token after the unfrozen period
@@ -254,19 +255,33 @@ contract StakedSoccerStarNft is Ownable {
     }
 
     function getUnClaimedRewards(address user) public override view returns(uint amount){
-        return getAndMarkUnClaimedRewards(user, false);
+        uint totalRewards = 0;
+        uint curRound = getCurrentRound();
+
+        // go through to accurate the rewards
+        UserStakedInfo[] storage userStakedInfos = stakedInfos[user];
+        for(uint i = 0; i < userStakedInfos.length; i++){
+            UserStakedInfo storage userStakedInfo = userStakedInfos[i];
+            if(!userStakedInfo.claimed && curRound > userStakedInfo.round){
+                DepositInfo storage depositInfo = roundToDepositInfos[userStakedInfo.round];
+                if(depositInfo.totalPower > 0
+                 && depositInfo.totalDeposit > 0){
+                    uint share = depositInfo.totalDeposit.mul(getTokenPower(userStakedInfo.tokenId)).div(depositInfo.totalPower);
+                    totalRewards += share;
+                }
+            }
+        }
+
+        return totalRewards;
     }
 
     // Get unclaimed rewards 
     function getAndMarkUnClaimedRewards(address user, bool markClaim)
      internal returns(uint amount){
-        UserStakedInfo[] storage userStakedInfos = stakedInfos[user];
-        if(0 == userStakedInfos.length){
-            return 0;
-        }
-
         uint totalRewards = 0;
         uint curRound = getCurrentRound();
+
+        UserStakedInfo[] storage userStakedInfos = stakedInfos[user];
 
         // go through to accurate the rewards
         for(uint i = 0; i < userStakedInfos.length; i++){
@@ -283,8 +298,8 @@ contract StakedSoccerStarNft is Ownable {
                     totalRewards += share;
                 }
             }
-            return totalRewards;
         }
+        return totalRewards;
     }
 
     // Claim rewards
@@ -299,7 +314,7 @@ contract StakedSoccerStarNft is Ownable {
     }
 
     // Get staked info
-    function getDepositInfo() public view override returns(DepositInfo[] memory depositInfos){
+    function getDepositInfo() public view override returns(DepositInfo[] memory){
         return depositInfos;
     }
 
@@ -316,7 +331,7 @@ contract StakedSoccerStarNft is Ownable {
                 pageSt++;
             } 
         }
-        return depositInfo;
+        return retDepositInfos;
     }
 
 
