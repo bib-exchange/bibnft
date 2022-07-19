@@ -26,9 +26,23 @@ interface IERC721MintableBurnable is IERC721 {
 contract SoccerStarNft is ERC721A, Ownable, Initializable {
     using Strings for uint;
     uint256 public constant maxMintSupply = 29930;
-    uint256 public mintPrice;
+    uint256 public mintPresalePrice;
+    uint256 public mintSale1Price;
+    uint256 public mintSale2Price;
+    uint256 public mintSale3Price;
+    uint256 public mintSale4Price;
+    uint256 public mintSale5Price;
+
     uint256 public refundPeriod;
-    bool isReveal;
+    //URI of the NFTs when revealed
+    string public baseURI;
+    //URI of the NFTs when not revealed
+    string public notRevealedURI;
+    //The extension of the file containing the Metadatas of the NFTs
+    string public baseExtension = ".json";
+
+    //Are the NFTs revealed yet ?
+    bool public revealed = false;
     IERC20MintableBurnable public paymentToken;
 
     uint private constant MAX_PRESALE = 4800;
@@ -54,9 +68,18 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     uint256 public    saleStartTimeRound3 = 1664812800;//10月4日0时0分0秒
     uint256 public    saleStartTimeRound4 = 1665417600;//10月11日0时0分0秒
     uint256 public    saleStartTimeRound5 = 1666022400;//10月18日0时0分0秒
-    uint256 public    revealTime = 1666022400;//10月18日0时0分0秒
+    uint256 public    revealTime = 1666022422;//10月18日0时0分0秒
+
+    uint256 public    preSaleEndTime;
+    uint256 public    saleEndTimeRound1;
+    uint256 public    saleEndTimeRound2;
+    uint256 public    saleEndTimeRound3;
+    uint256 public    saleEndTimeRound4;
+    uint256 public    saleEndTimeRound5;
 
     address public deadwallet = 0x0000000000000000000000000000000000000000;//将代币打进这个地址就是销毁
+    //Keep a track of the number of tokens per address
+    mapping(address => uint) nftsPerWallet;
 
     // _paused is used to pause the contract in case of an emergency
     bool public _paused;
@@ -117,26 +140,22 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
     event UpdatesSaleStep(address newAddress, BlindBoxesType blindBoxes, uint256 tokenId, uint256 quantity);
 
-    string private baseURI;
-
     modifier callerIsUser() {
         require(tx.origin == msg.sender, "The caller is another contract");
         _;
     }
 
-    function initialize(uint256 _mintPrice,uint256 _refundPeriod,address _paymentToken, bytes32 _merkleRoot) initializer public {
+    function initialize(string memory _theBaseURI, string memory _notRevealedURI, bytes32 _merkleRoot) initializer public {
            merkleRoot = _merkleRoot;
-           mintPrice = _mintPrice;
-           refundPeriod = _refundPeriod;
-           paymentToken = IERC20MintableBurnable(_paymentToken);
+           baseURI = _theBaseURI;
+           notRevealedURI = _notRevealedURI;
     }
 
 
     constructor() ERC721A("SoccerStarNft", "SS") {
         refundAddress = msg.sender;
         toggleRefundCountdown();
-        remainingMint = totalSupply() - _numberMinted(msg.sender);
-        alreadyMint = _numberMinted(msg.sender);
+        alreadyMint = totalSupply();
     }
 
     /**
@@ -146,46 +165,139 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         _paused = val;
     }
 
-    function setRevealTime(uint _revealTime) external onlyOwner {
+    function setPreSaleTime(uint _preSaleStartTime, uint _preSaleEndTime, uint _revealTime) external onlyOwner {
+        preSaleStartTime = _preSaleStartTime;
+        preSaleEndTime = _preSaleEndTime;
         revealTime = _revealTime;
     }
 
-    function setPreSaleStartTime(uint _preSaleStartTime) external onlyOwner {
-        preSaleStartTime = _preSaleStartTime;
+    function setSaleTime1(uint _saleStartTime,uint _saleEndTimeRound1,uint _revealTime) external onlyOwner {
+        saleStartTimeRound1 = _saleStartTime;
+        saleEndTimeRound1 = _saleEndTimeRound1;
+        revealTime = _revealTime;
     }
 
-    function setSaleStartTime1(uint _SaleStartTime) external onlyOwner {
-        saleStartTimeRound1 = _SaleStartTime;
+    function setSaleTime2(uint _saleStartTime,uint _saleEndTimeRound1,uint _revealTime) external onlyOwner {
+        saleStartTimeRound2 = _saleStartTime;
+        saleEndTimeRound2 = _saleEndTimeRound2;
+        revealTime = _revealTime;
     }
 
-    function setSaleStartTime2(uint _SaleStartTime) external onlyOwner {
-        saleStartTimeRound2 = _SaleStartTime;
+    function setSaleTime3(uint _saleStartTime, uint _saleEndTimeRound2,uint _revealTime) external onlyOwner {
+        saleStartTimeRound3 = _saleStartTime;
+        saleEndTimeRound3 = _saleEndTimeRound2;
+        revealTime = _revealTime;
     }
 
-    function setSaleStartTime3(uint _SaleStartTime) external onlyOwner {
-        saleStartTimeRound3 = _SaleStartTime;
+    function setSaleTime4(uint _saleStartTime, uint _saleEndTimeRound4,uint _revealTime) external onlyOwner {
+        saleStartTimeRound4 = _saleStartTime;
+         saleEndTimeRound4 = _saleEndTimeRound4;
+        revealTime = _revealTime;
     }
 
-    function setSaleStartTime4(uint _SaleStartTime) external onlyOwner {
-        saleStartTimeRound4 = _SaleStartTime;
+    function setSaleTime5(uint _saleEndTime, uint _saleEndTimeRound5,uint _revealTime) external onlyOwner {
+        saleStartTimeRound5 = _saleEndTime;
+        saleEndTimeRound5 = _saleEndTimeRound5;
+        revealTime = _revealTime;
     }
 
-    function setSaleStartTime5(uint _SaleStartTime) external onlyOwner {
-        saleStartTimeRound5 = _SaleStartTime;
+    function setMintPrePrice(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+        mintPresalePrice = _mintPrice;
     }
 
-    function setMintPrice(uint256 _mintPrice) public onlyOwner {
-        mintPrice = _mintPrice;
+    function setMintSale1Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+         if (_blindBoxes == BlindBoxesType.normal) {
+
+            return mintSale1Price = _mintPrice;;
+        } else if (_blindBoxes == BlindBoxesType.supers) {
+           
+            return mintSale1Price = _mintPrice;;
+        } else if (_blindBoxes == BlindBoxesType.legend){
+            
+            return mintSale1Price = _mintPrice;;
+        }
     }
 
-    function reveal(uint256 tokenID, string memory _name,string memory _country,string memory _position, uint256 _starLevel, uint256 _gradient) public onlyOwner {
+    function setMintSale2Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+        
+
+        if (_blindBoxes == BlindBoxesType.normal) {
+
+            return mintSale2Price = _mintPrice;
+        } else if (_blindBoxes == BlindBoxesType.supers) {
+           
+            return mintSale2Price = _mintPrice;
+        } else if (_blindBoxes == BlindBoxesType.legend){
+            
+            return mintSale2Price = _mintPrice;
+        }
+    }
+
+    function setMintSale3Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+          if (_blindBoxes == BlindBoxesType.normal) {
+
+            return mintSale3Price = _mintPrice;
+        } else if (_blindBoxes == BlindBoxesType.supers) {
+           
+            return mintSale3Price = _mintPrice;
+        } else if (_blindBoxes == BlindBoxesType.legend){
+            
+            return mintSale3Price = _mintPrice;
+        }
+    }
+
+    function setMintSale4Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+        
+
+          if (_blindBoxes == BlindBoxesType.normal) {
+
+            return mintSale4Price = _mintPrice;
+        } else if (_blindBoxes == BlindBoxesType.supers) {
+           
+            return mintSale4Price = _mintPrice;
+        } else if (_blindBoxes == BlindBoxesType.legend){
+            
+            return mintSale4Price = _mintPrice;
+        }
+    }
+
+    function setMintSale5Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+        
+
+         if (_blindBoxes == BlindBoxesType.normal) {
+
+            return mintSale4Price = _mintPrice;
+        } else if (_blindBoxes == BlindBoxesType.supers) {
+           
+            return mintSale4Price = _mintPrice;
+        } else if (_blindBoxes == BlindBoxesType.legend){
+            
+            return mintSale4Price = _mintPrice;
+        }
+    }
+
+
+     /**
+    * @notice Allows to set the revealed variable to true
+    **/
+    function reveal() external onlyOwner{
+
+        // require(currentTime() >= revealTime, "Whitelist reveal not start");
+        revealed = true;
+    }
+
+    function updateReveal(uint256 tokenID, string memory _name,string memory _country, string memory _position, uint256 _starLevel, uint256 _gradient) public onlyOwner {
         
             cardProperty[tokenID] = SoccerStar(_name, _country, _position, _starLevel, _gradient);
     }
 
     //计算剩余mint的数量
-    function caculateRemaining() view public onlyOwner returns (uint256) {
-            return totalSupply() - _numberMinted(msg.sender);
+    function caculatePreRemaining() view public returns (uint256) {
+            return MAX_PRESALE - totalSupply();
+    }
+
+    function caculateRound1NormalRemaining() view public returns (uint256) {
+            return MAX_PUBLIC_ROUND1_NORMAL - totalSupply();
     }
 
     function setRefundPeriod(uint256 _refundPeriod) public onlyOwner {
@@ -203,8 +315,9 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         callerIsUser
     {
         require(presaleActive, "Presale is not active");
+        require(msg.value >= quantity * mintPresalePrice, "Not enough eth sent");
         require(currentTime() >= preSaleStartTime, "Whitelist Sale has not started yet");
-        require(currentTime() < preSaleStartTime + 1 days, "Whitelist Sale is finished");
+        require(currentTime() < preSaleEndTime, "Whitelist Sale is finished");
         require(sellingStep == Step.preSaleMint, "Whitelist sale is not activated");
         require(
             _isAllowlisted(msg.sender, proof, merkleRoot),
@@ -227,13 +340,17 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         }
 
         // EVENT：sender,presale,_currentIndex - quantity,quantitty，ramdomseed
-         paymentToken.burnFrom(deadwallet, quantity * mintPrice);
+         paymentToken.burnFrom(deadwallet, quantity * mintPresalePrice);
     }
 
-    function publicSaleMintRound1(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser {
+
+    function publicSaleMint(BlindBoxesType _blindBoxes, uint256 quantity, uint round) external payable onlyWhenNotPaused callerIsUser {
         require(publicSaleActive, "Public sale is not active");
+
+         if (round == 1) {
+        require(msg.value >= quantity * mintSale1Price, "Not enough eth sent");
         require(currentTime() >= saleStartTimeRound1, "public Sale round1 has not started yet");
-        require(currentTime() < saleStartTimeRound1 + 1 days, "public Sale round1 Sale is finished");
+        require(currentTime() < saleEndTimeRound1, "public Sale round1 Sale is finished");
         require(sellingStep == Step.publicSaleMintRound1, "publicSaleMintRound1 sale is not activated");
         require(
             _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
@@ -257,14 +374,12 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             cardProperty[i] = soccerStars[_currentIndex];
         }
 
-        paymentToken.burnFrom(deadwallet, quantity * mintPrice);
-    }
-
-    function publicSaleMintRound2(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser {
-        require(publicSaleActive, "Public sale is not active");
-        require(msg.value >= quantity * mintPrice, "Not enough eth sent");
+        paymentToken.burnFrom(deadwallet, quantity * mintSale1Price);
+            
+        } else if (round == 2) {
+              require(msg.value >= quantity * mintSale2Price, "Not enough eth sent");
         require(currentTime() >= saleStartTimeRound2, "public Sale round2 has not started yet");
-        require(currentTime() < saleStartTimeRound2 + 1 days, "public Sale round2 Sale is finished");
+        require(currentTime() < saleEndTimeRound2, "public Sale round2 Sale is finished");
         require(sellingStep == Step.publicSaleMintRound2, "publicSaleMintRound2 sale is not activated");
         require(
             _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
@@ -288,32 +403,27 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             cardProperty[i] = soccerStars[_currentIndex];
         }
 
-        paymentToken.burnFrom(deadwallet, quantity * mintPrice);
-       
-    }
+        paymentToken.burnFrom(deadwallet, quantity * mintSale2Price);
 
-    function publicSaleMintRound3(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser {
-        require(publicSaleActive, "Public sale is not active");
-        require(currentTime() >= saleStartTimeRound3, "public Sale round3 has not started yet");
-        require(currentTime() < saleStartTimeRound3 + 1 days, "public Sale round3 Sale is finished");
-        require(sellingStep == Step.publicSaleMintRound3, "publicSaleMintRound3 sale is not activated");
+           
+        } else if (round == 3){
+        require(msg.value >= quantity * mintSale3Price, "Not enough eth sent");
+        require(currentTime() >= saleStartTimeRound3, "public Sale round1 has not started yet");
+        require(currentTime() < saleEndTimeRound3, "public Sale round1 Sale is finished");
+        require(sellingStep == Step.publicSaleMintRound3, "publicSaleMintRound1 sale is not activated");
         require(
             _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
             "Over mint limit"
         );
-        require(
-            _totalMinted() + quantity <= maxMintSupply,
-            "Max mint supply reached"
-        );
-
+        
         if (_blindBoxes == BlindBoxesType.normal) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND3_NORMAL, "Max mint supply reached");
+            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND1_NORMAL, "Max mint supply reached");
             return _safeMint(msg.sender, quantity);
         } else if (_blindBoxes == BlindBoxesType.supers) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND3_SUPERS,"Max mint supply reached");
+            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND1_SUPERS,"Max mint supply reached");
             return _safeMint(msg.sender, quantity);
         } else if (_blindBoxes == BlindBoxesType.legend){
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND3_LEGEND, "Max mint supply reached");
+            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND1_LEGEND, "Max mint supply reached");
             return _safeMint(msg.sender, quantity);
         }
 
@@ -323,14 +433,12 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             cardProperty[i] = soccerStars[_currentIndex];
         }
 
-        paymentToken.burnFrom(deadwallet, quantity * mintPrice);
-    }
-
-
-    function publicSaleMintRound4(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser {
-        require(publicSaleActive, "Public sale is not active");
+        paymentToken.burnFrom(deadwallet, quantity * mintSale3Price);
+            
+        } else if (round == 4) {
+             require(msg.value >= quantity * mintSale4Price, "Not enough eth sent");
         require(currentTime() >= saleStartTimeRound4, "public Sale round4 has not started yet");
-        require(currentTime() < saleStartTimeRound4 + 1 days, "public Sale round4 Sale is finished");
+        require(currentTime() < saleEndTimeRound4, "public Sale round4 Sale is finished");
         require(sellingStep == Step.publicSaleMintRound4, "publicSaleMintRound4 sale is not activated");
         require(
             _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
@@ -354,13 +462,14 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             cardProperty[i] = soccerStars[_currentIndex];
         }
 
-        paymentToken.burnFrom(deadwallet, quantity * mintPrice);
-    }
+        paymentToken.burnFrom(deadwallet, quantity * mintSale4Price);
 
-    function publicSaleMintRound5(BlindBoxesType _blindBoxes, uint256 quantity) external payable onlyWhenNotPaused callerIsUser {
-        require(publicSaleActive, "Public sale is not active");
+        }
+
+        } else if (round == 5) {
+            require(msg.value >= quantity * mintSale5Price, "Not enough eth sent");
         require(currentTime() >= saleStartTimeRound5, "public Sale round5 has not started yet");
-        require(currentTime() < saleStartTimeRound5 + 1 days, "public Sale round5 Sale is finished");
+        require(currentTime() < saleEndTimeRound5, "public Sale round5 Sale is finished");
         require(sellingStep == Step.publicSaleMintRound5, "publicSaleMintRound5 sale is not activated");
         require(
             _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
@@ -384,7 +493,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             cardProperty[i] = soccerStars[_currentIndex];
         }
 
-        paymentToken.burnFrom(deadwallet, quantity * mintPrice);
+        paymentToken.burnFrom(deadwallet, quantity * mintSale5Price);
+        
     }
 
     function ownerMint(uint256 quantity) external onlyOwner onlyWhenNotPaused {
@@ -447,11 +557,17 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         return 1;
     }
 
-
-    function tokenURI(uint _tokenId) public view virtual override returns (string memory) {
-        require(_exists(_tokenId), "URI query for nonexistent token");
-
-        return string(abi.encodePacked(baseURI, _tokenId.toString(), ".json"));
+    function tokenURI(uint _nftId) public view override(ERC721) returns (string memory) {
+        require(_exists(_nftId), "This NFT doesn't exist.");
+        if(revealed == false) {
+            return notRevealedURI;
+        }
+        
+        string memory currentBaseURI = _baseURI();
+        return 
+            bytes(currentBaseURI).length > 0 
+            ? string(abi.encodePacked(currentBaseURI, _nftId.toString(), baseExtension))
+            : "";
     }
 
     function _baseURI() internal view override returns (string memory) {
@@ -470,6 +586,11 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         baseURI = uri;
     }
 
+    function setNotRevealURI(string memory _notRevealedURI) external onlyOwner {
+        notRevealedURI = _notRevealedURI;
+    }
+
+    
     function toggleRefundCountdown() public onlyOwner {
         refundEndTime = block.timestamp + refundPeriod;
     }
