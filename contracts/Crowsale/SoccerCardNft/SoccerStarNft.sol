@@ -177,7 +177,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         revealTime = _revealTime;
     }
 
-    function setSaleTime2(uint _saleStartTime,uint _saleEndTimeRound1,uint _revealTime) external onlyOwner {
+    function setSaleTime2(uint _saleStartTime,uint _saleEndTimeRound2,uint _revealTime) external onlyOwner {
         saleStartTimeRound2 = _saleStartTime;
         saleEndTimeRound2 = _saleEndTimeRound2;
         revealTime = _revealTime;
@@ -205,16 +205,16 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         mintPresalePrice = _mintPrice;
     }
 
-    function setMintSale1Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+    function setMintSale1Price(uint256 _mintPrice1, BlindBoxesType _blindBoxes) public onlyOwner {
          if (_blindBoxes == BlindBoxesType.normal) {
 
-            return mintSale1Price = _mintPrice;;
+            mintSale1Price = _mintPrice1;
         } else if (_blindBoxes == BlindBoxesType.supers) {
            
-            return mintSale1Price = _mintPrice;;
+            mintSale1Price = _mintPrice1;
         } else if (_blindBoxes == BlindBoxesType.legend){
             
-            return mintSale1Price = _mintPrice;;
+            mintSale1Price = _mintPrice1;
         }
     }
 
@@ -223,26 +223,26 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
         if (_blindBoxes == BlindBoxesType.normal) {
 
-            return mintSale2Price = _mintPrice;
+            mintSale2Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.supers) {
            
-            return mintSale2Price = _mintPrice;
+            mintSale2Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.legend){
             
-            return mintSale2Price = _mintPrice;
+            mintSale2Price = _mintPrice;
         }
     }
 
     function setMintSale3Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
           if (_blindBoxes == BlindBoxesType.normal) {
 
-            return mintSale3Price = _mintPrice;
+            mintSale3Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.supers) {
            
-            return mintSale3Price = _mintPrice;
+            mintSale3Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.legend){
             
-            return mintSale3Price = _mintPrice;
+            mintSale3Price = _mintPrice;
         }
     }
 
@@ -251,13 +251,13 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
           if (_blindBoxes == BlindBoxesType.normal) {
 
-            return mintSale4Price = _mintPrice;
+            mintSale4Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.supers) {
            
-            return mintSale4Price = _mintPrice;
+            mintSale4Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.legend){
             
-            return mintSale4Price = _mintPrice;
+            mintSale4Price = _mintPrice;
         }
     }
 
@@ -266,13 +266,13 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
          if (_blindBoxes == BlindBoxesType.normal) {
 
-            return mintSale4Price = _mintPrice;
+            mintSale4Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.supers) {
            
-            return mintSale4Price = _mintPrice;
+             mintSale4Price = _mintPrice;
         } else if (_blindBoxes == BlindBoxesType.legend){
             
-            return mintSale4Price = _mintPrice;
+            mintSale4Price = _mintPrice;
         }
     }
 
@@ -464,7 +464,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
         paymentToken.burnFrom(deadwallet, quantity * mintSale4Price);
 
-        }
 
         } else if (round == 5) {
             require(msg.value >= quantity * mintSale5Price, "Not enough eth sent");
@@ -495,7 +494,11 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
         paymentToken.burnFrom(deadwallet, quantity * mintSale5Price);
         
-    }
+         }
+
+     }
+
+
 
     function ownerMint(uint256 quantity) external onlyOwner onlyWhenNotPaused {
         require(
@@ -508,8 +511,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             cardProperty[i] = soccerStars[_currentIndex];
         }
 
-        paymentToken.burnFrom(deadwallet, quantity * mintPrice);
-
         for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
             isOwnerMint[i] = true;
         }
@@ -518,7 +519,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     function setStep(uint _step) external onlyOwner {
         sellingStep = Step(_step);
     }
-
+// 需要识别用户付款但没有收到NFT的情况，自动回退Mint失败资金。
     function refund(uint256[] calldata tokenIds) external {
         require(isRefundGuaranteeActive(), "Refund expired");
 
@@ -531,7 +532,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
             transferFrom(msg.sender, refundAddress, tokenId);
         }
 
-        uint256 refundAmount = tokenIds.length * mintPrice;
+        uint256 refundAmount = tokenIds.length * mintPresalePrice;
         Address.sendValue(payable(msg.sender), refundAmount);
     }
 
@@ -557,7 +558,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         return 1;
     }
 
-    function tokenURI(uint _nftId) public view override(ERC721) returns (string memory) {
+    function tokenURI(uint _nftId) public view override(ERC721A) returns (string memory) {
         require(_exists(_nftId), "This NFT doesn't exist.");
         if(revealed == false) {
             return notRevealedURI;
