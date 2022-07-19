@@ -107,14 +107,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
     BlindBoxesType public blindBoxes;
     BlindBoxesType constant defaultType = BlindBoxesType.presale;
 
-     struct SoccerStar {
-        string name;
-        string country;
-        string position;
-        uint256 starLevel;//0=1star, 1=2star, 2=3star, 3=4star
-        uint256 gradient;//T0=0, T1=1, T2=2, T3=3
-    }
-
     SoccerStar[] public soccerStars;
 
     modifier onlyWhenNotPaused {
@@ -170,7 +162,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
     {
         require(tokenIds.length == _soccerStars.length, "NEED_SAME_LENGTH");
         for(uint i = 0; i < _soccerStars.length; i++){
-            require(cardProperty[tokenId].starLevel == 0, "TOKEN_REVEALED");
+            require(cardProperty[tokenIds[i]].starLevel == 0, "TOKEN_REVEALED");
             cardProperty[tokenIds[i]] = _soccerStars[i];
         }
     }
