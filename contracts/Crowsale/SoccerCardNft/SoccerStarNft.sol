@@ -10,7 +10,6 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import {ISoccerStarNft} from "../../interfaces/ISoccerStarNft.sol";
 
 interface IERC20MintableBurnable is IERC20 {
     function mint(address, uint256) external;
@@ -24,7 +23,7 @@ interface IERC721MintableBurnable is IERC721 {
     function burn(uint256) external;
 }
 
-contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
+contract SoccerStarNft is ERC721A, Ownable, Initializable {
     using Strings for uint;
     uint256 public constant maxMintSupply = 29930;
     uint256 public mintPresalePrice;
@@ -34,7 +33,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
     uint256 public mintSale4Price;
     uint256 public mintSale5Price;
 
-    uint256 public refundPeriod;
     //URI of the NFTs when revealed
     string public baseURI;
     //URI of the NFTs when not revealed
@@ -107,6 +105,14 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
     BlindBoxesType public blindBoxes;
     BlindBoxesType constant defaultType = BlindBoxesType.presale;
 
+     struct SoccerStar {
+        string name;
+        string country;
+        string position;
+        uint256 starLevel;//0=1star, 1=2star, 2=3star, 3=4star
+        uint256 gradient;//T0=0, T1=1, T2=2, T3=3
+    }
+
     SoccerStar[] public soccerStars;
 
     modifier onlyWhenNotPaused {
@@ -147,24 +153,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
 
     constructor() ERC721A("SoccerStarNft", "SS") {
         refundAddress = msg.sender;
-        toggleRefundCountdown();
         alreadyMint = totalSupply();
-    }
-
-    function getCardProperty(uint256 tokenId) public view override
-    returns(SoccerStar memory){
-        return cardProperty[tokenId];
-    }
-
-    function reveal(uint[] memory tokenIds, SoccerStar[] memory _soccerStars)
-        external
-        onlyOwner
-    {
-        require(tokenIds.length == _soccerStars.length, "NEED_SAME_LENGTH");
-        for(uint i = 0; i < _soccerStars.length; i++){
-            require(cardProperty[tokenIds[i]].starLevel == 0, "TOKEN_REVEALED");
-            cardProperty[tokenIds[i]] = _soccerStars[i];
-        }
     }
 
     /**
@@ -174,40 +163,30 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
         _paused = val;
     }
 
-    function setPreSaleTime(uint _preSaleStartTime, uint _preSaleEndTime, uint _revealTime) external onlyOwner {
-        preSaleStartTime = _preSaleStartTime;
-        preSaleEndTime = _preSaleEndTime;
-        revealTime = _revealTime;
-    }
+    function setPreSaleTime(uint _startTime, uint _endTime, uint _revealTime, uint round) external onlyOwner {
 
-    function setSaleTime1(uint _saleStartTime,uint _saleEndTimeRound1,uint _revealTime) external onlyOwner {
-        saleStartTimeRound1 = _saleStartTime;
-        saleEndTimeRound1 = _saleEndTimeRound1;
-        revealTime = _revealTime;
-    }
-
-    function setSaleTime2(uint _saleStartTime,uint _saleEndTimeRound2,uint _revealTime) external onlyOwner {
-        saleStartTimeRound2 = _saleStartTime;
-        saleEndTimeRound2 = _saleEndTimeRound2;
-        revealTime = _revealTime;
-    }
-
-    function setSaleTime3(uint _saleStartTime, uint _saleEndTimeRound2,uint _revealTime) external onlyOwner {
-        saleStartTimeRound3 = _saleStartTime;
-        saleEndTimeRound3 = _saleEndTimeRound2;
-        revealTime = _revealTime;
-    }
-
-    function setSaleTime4(uint _saleStartTime, uint _saleEndTimeRound4,uint _revealTime) external onlyOwner {
-        saleStartTimeRound4 = _saleStartTime;
-         saleEndTimeRound4 = _saleEndTimeRound4;
-        revealTime = _revealTime;
-    }
-
-    function setSaleTime5(uint _saleEndTime, uint _saleEndTimeRound5,uint _revealTime) external onlyOwner {
-        saleStartTimeRound5 = _saleEndTime;
-        saleEndTimeRound5 = _saleEndTimeRound5;
-        revealTime = _revealTime;
+         if (round == 1) {
+           preSaleStartTime = _startTime;
+            preSaleEndTime = _endTime;
+            revealTime = _revealTime;
+        } else if (round == 2) {      
+           saleStartTimeRound1 = _startTime;
+           saleEndTimeRound1 = _endTime;
+           revealTime = _revealTime;
+        } else if (round == 3){     
+           saleStartTimeRound3 = _startTime;
+           saleEndTimeRound3 = _endTime;
+           revealTime = _revealTime;
+        } else if (round == 4){
+           saleStartTimeRound4 = _startTime;
+           saleEndTimeRound4 = _endTime;
+           revealTime = _revealTime;
+        } else if (round == 5) {
+            saleStartTimeRound5 = _startTime;
+            saleEndTimeRound5 = _endTime;
+          revealTime = _revealTime;
+        }
+        
     }
 
     function setMintPrePrice(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
@@ -295,6 +274,11 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
         revealed = true;
     }
 
+    function updateReveal(uint256 tokenID, string memory _name,string memory _country, string memory _position, uint256 _starLevel, uint256 _gradient) public onlyOwner {
+        
+            cardProperty[tokenID] = SoccerStar(_name, _country, _position, _starLevel, _gradient);
+    }
+
     //计算剩余mint的数量
     function caculatePreRemaining() view public returns (uint256) {
             return MAX_PRESALE - totalSupply();
@@ -302,10 +286,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
 
     function caculateRound1NormalRemaining() view public returns (uint256) {
             return MAX_PUBLIC_ROUND1_NORMAL - totalSupply();
-    }
-
-    function setRefundPeriod(uint256 _refundPeriod) public onlyOwner {
-        refundPeriod = _refundPeriod;
     }
 
     function getUserCardWallet(address _user) public returns (SoccerStar[] memory) {
@@ -524,8 +504,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
         sellingStep = Step(_step);
     }
 // 需要识别用户付款但没有收到NFT的情况，自动回退Mint失败资金。
-    function refund(uint256[] calldata tokenIds) external {
-        require(isRefundGuaranteeActive(), "Refund expired");
+    function refund(uint256[] calldata tokenIds) onlyOwner {
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
@@ -542,10 +521,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
 
     function getRefundGuaranteeEndTime() public view returns (uint256) {
         return refundEndTime;
-    }
-
-    function isRefundGuaranteeActive() public view returns (bool) {
-        return (block.timestamp <= refundEndTime);
     }
 
     function currentTime() internal view returns(uint) {
@@ -593,11 +568,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
 
     function setNotRevealURI(string memory _notRevealedURI) external onlyOwner {
         notRevealedURI = _notRevealedURI;
-    }
-
-    
-    function toggleRefundCountdown() public onlyOwner {
-        refundEndTime = block.timestamp + refundPeriod;
     }
 
     function togglePresaleStatus() external onlyOwner {
