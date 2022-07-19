@@ -504,7 +504,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         sellingStep = Step(_step);
     }
 // 需要识别用户付款但没有收到NFT的情况，自动回退Mint失败资金。
-    function refund(uint256[] calldata tokenIds) onlyOwner {
+    function refund(uint256[] calldata tokenIds) public onlyOwner {
 
         for (uint256 i = 0; i < tokenIds.length; i++) {
             uint256 tokenId = tokenIds[i];
