@@ -1,0 +1,26 @@
+{
+    "id": 1,
+    "description": "This Soccer star, Star 110, is a unique Star in the set of 471 and is sure to be a digital avatar that will make you feel like a Star for a lifetime.",
+    "external_url": "https://www.bibmeta.net/",
+    "image": "https://raw.githubusercontent.com/samherring99/starsnft/main/images/star-110x6.png",
+    "name": "Messi",
+    "attributes": [
+      {
+        "trait_type": "country",
+        "value": "阿根廷"
+      },
+      {
+        "trait_type": "position",
+        "value": "前锋"
+      },
+      {
+        "trait_type": "starLevel",//0=1star, 1=2star, 2=3star, 3=4star
+        
+        "value": "0"
+      },
+      {
+        "trait_type": "gradient",//梯度，T0=0, T1=1, T2=2, T3=3
+        "value": "0"
+      }
+    ]
+  }
