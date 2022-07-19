@@ -163,7 +163,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         _paused = val;
     }
 
-    function setPreSaleTime(uint _startTime, uint _endTime, uint _revealTime, uint round) external onlyOwner {
+    function setSaleTime(uint _startTime, uint _endTime, uint _revealTime, uint round) external onlyOwner {
 
          if (round == 1) {
            preSaleStartTime = _startTime;
@@ -193,7 +193,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         mintPresalePrice = _mintPrice;
     }
 
-    function setMintSale1Price(uint256 _mintPrice, BlindBoxesType _blindBoxes,uint round) public onlyOwner {
+    function setMintSalePrice(uint256 _mintPrice, BlindBoxesType _blindBoxes,uint round) public onlyOwner {
 
         if (round == 1) {
            if (_blindBoxes == BlindBoxesType.normal) {
@@ -253,29 +253,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         }
          
     }
-
-    function setMintSale2Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
-        
-
-        
-    }
-
-    function setMintSale3Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
-          
-    }
-
-    function setMintSale4Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
-        
-
-          
-    }
-
-    function setMintSale5Price(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
-        
-
-         
-    }
-
 
      /**
     * @notice Allows to set the revealed variable to true
