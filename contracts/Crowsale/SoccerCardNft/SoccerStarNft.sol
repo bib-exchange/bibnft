@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import {ISoccerStarNft} from "../../interfaces/ISoccerStarNft.sol";
 
 interface IERC20MintableBurnable is IERC20 {
     function mint(address, uint256) external;
@@ -23,7 +24,7 @@ interface IERC721MintableBurnable is IERC721 {
     function burn(uint256) external;
 }
 
-contract SoccerStarNft is ERC721A, Ownable, Initializable {
+contract SoccerStarNft is ERC721A, Ownable, Initializable, ISoccerStarNft {
     using Strings for uint;
     uint256 public constant maxMintSupply = 29930;
     uint256 public mintPresalePrice;
@@ -106,14 +107,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     BlindBoxesType public blindBoxes;
     BlindBoxesType constant defaultType = BlindBoxesType.presale;
 
-     struct SoccerStar {
-        string name;
-        string country;
-        string position;
-        uint256 starLevel;//0=1star, 1=2star, 2=3star, 3=4star
-        uint256 gradient;//T0=0, T1=1, T2=2, T3=3
-    }
-
     SoccerStar[] public soccerStars;
 
     modifier onlyWhenNotPaused {
@@ -156,6 +149,22 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         refundAddress = msg.sender;
         toggleRefundCountdown();
         alreadyMint = totalSupply();
+    }
+
+    function getCardProperty(uint256 tokenId) public view override
+    returns(SoccerStar memory){
+        return cardProperty[tokenId];
+    }
+
+    function reveal(uint[] memory tokenIds, SoccerStar[] memory _soccerStars)
+        external
+        onlyOwner
+    {
+        require(tokenIds.length == _soccerStars.length, "NEED_SAME_LENGTH");
+        for(uint i = 0; i < _soccerStars.length; i++){
+            require(cardProperty[tokenIds[i]].starLevel == 0, "TOKEN_REVEALED");
+            cardProperty[tokenIds[i]] = _soccerStars[i];
+        }
     }
 
     /**
@@ -284,11 +293,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
         // require(currentTime() >= revealTime, "Whitelist reveal not start");
         revealed = true;
-    }
-
-    function updateReveal(uint256 tokenID, string memory _name,string memory _country, string memory _position, uint256 _starLevel, uint256 _gradient) public onlyOwner {
-        
-            cardProperty[tokenID] = SoccerStar(_name, _country, _position, _starLevel, _gradient);
     }
 
     //计算剩余mint的数量
