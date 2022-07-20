@@ -16,7 +16,7 @@ interface IStakedSoccerStarNft {
         uint tokenId;
         uint round;
         uint unfrozenTime;
-        bool claimed;
+        int claimedRound;
     }
 
     // Trigred when adim deposit a specified funds to pool
