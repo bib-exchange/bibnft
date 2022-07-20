@@ -117,6 +117,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
     modifier onlyWhenNotPaused {
         require(!_paused, "Contract currently paused");
+        
         _;
     }
 
@@ -263,10 +264,23 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         revealed = true;
     }
 
-    function updateReveal(uint256 tokenID, string memory _name,string memory _country, string memory _position, uint256 _starLevel, uint256 _gradient) public onlyOwner {
-        
-            cardProperty[tokenID] = SoccerStar(_name, _country, _position, _starLevel, _gradient);
+    function getCardProperty(uint256 tokenId) public view override
+    returns(SoccerStar memory){
+        return cardProperty[tokenId];
     }
+
+
+   function updateReveal(uint[] memory tokenIds, SoccerStar[] memory _soccerStars)
+        external
+        onlyOwner
+    {
+        require(tokenIds.length == _soccerStars.length, "NEED_SAME_LENGTH");
+        for(uint i = 0; i < _soccerStars.length; i++){
+            require(cardProperty[tokenIds[i]].starLevel == 0, "TOKEN_REVEALED");
+            cardProperty[tokenIds[i]] = _soccerStars[i];
+        }
+    }
+
 
     //计算剩余mint的数量
     function caculatePreRemaining() view public returns (uint256) {
