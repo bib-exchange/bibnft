@@ -7,11 +7,13 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import {SafeMath} from "../libs/SafeMath.sol";
+import {SafeCast} from "../libs/SafeCast.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {IStakedSoccerStarNft} from "../interfaces/IStakedSoccerStarNft.sol";
 
 contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
     using SafeMath for uint;
+    using SafeCast for uint;
 
     event FrozenDurationChanged(uint oldValue, uint newValue);
     event RewardPeriodChanged(uint oldValue, uint newValue);
@@ -21,7 +23,8 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
 
     IERC20 public rewardContract;
     IERC721 public nftContract;
-    
+
+    int constant public INVLID_ROUND = -1;
     uint public rewardPeriod = 1 days;
     uint public frozenDuration = 7 days;
     uint public rewardStart;
@@ -29,9 +32,6 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
     uint public totalPower;
 
     DepositInfo[] public depositInfos;
-
-    // Keep a fast index to avoid too many times of loop
-    mapping(uint=>DepositInfo) public roundToDepositInfos;
 
     mapping(address=>UserStakedInfo[]) public stakedInfos;
 
@@ -56,9 +56,19 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
         _;
     }
 
+    modifier onlyStarted(){
+        require(isStakedStart(), "REWARD_NOT_START");
+        _;
+    }
+
     modifier ownToken(uint tokenId){
         require(msg.sender == nftContract.ownerOf(tokenId), "TOKEN_NOT_BELONG_TO_SENDER");
         _;
+    }
+
+    // check if staked start
+    function isStakedStart() public view returns(bool){
+        return rewardStart <= block.timestamp;
     }
 
    function setFrozenDuration(uint newValue) public onlyOwner {
@@ -89,7 +99,7 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
     }
 
       // deposit a specified funds to pool
-    function deposit(uint amount) public override {
+    function deposit(uint amount) public override onlyStarted{
         require(amount > 0, "AMOUNT_TOOL_SMALL");
         
         (bool hasRound, uint round, DepositInfo memory roundInfo) = checkAndGetRound();
@@ -107,7 +117,6 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
                 totalClaimed:0
             });
             depositInfos.push(depositInfo);
-            roundToDepositInfos[round] = depositInfo;
         }else {
             roundInfo.totalDeposit += amount;
             depositInfos[depositInfos.length - 1] = roundInfo;
@@ -118,11 +127,11 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
         emit Deposit(msg.sender, round, amount);
     } 
 
-    function getCurrentRound() public view override returns(uint round){
+    function getCurrentRound() public view override onlyStarted returns(uint round){
         return block.timestamp.sub(rewardStart).div(rewardPeriod);
     }
 
-    function checkAndGetRound() public view returns(bool, uint, DepositInfo memory){
+    function checkAndGetRound() public view  returns(bool, uint, DepositInfo memory){
         DepositInfo memory roundInfo;
         if(depositInfos.length <= 0){
             return (false, 0, roundInfo);
@@ -134,14 +143,14 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
     }
 
     // close a reward period
-    function closeRound() public override{
+    function closeRound() public onlyStarted override{
         (bool hasRound, uint round, DepositInfo memory roundInfo) = checkAndGetRound();
-        if(hasRound && (round > roundInfo.round)){
+        if(hasRound && (round > roundInfo.round) ){
             // finalize total amount
             roundInfo.totalStaked = totalStaked;
             roundInfo.totalPower = totalPower;
             depositInfos[depositInfos.length - 1] = roundInfo;
-            
+
             emit CloseRound(
             msg.sender, 
             roundInfo.round, 
@@ -178,7 +187,7 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
     }
     
     // user staken one or more nft card to safty module
-    function stake(uint tokenId) public override ownToken(tokenId){
+    function stake(uint tokenId) public override onlyStarted ownToken(tokenId){
         require(!isStaking(tokenId), "TOKEN_STAKING");
 
         // check if need to close the old round
@@ -187,12 +196,15 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
         totalStaked++;
         totalPower += getTokenPower(tokenId);
 
-        stakedInfos[msg.sender].push(UserStakedInfo({
+        UserStakedInfo memory userStakedInfo = UserStakedInfo({
             tokenId: tokenId,
             round: getCurrentRound(),
-            unfrozenTime:0,
-            claimed: false
-        }));
+            unfrozenTime: 0,
+            claimedRound: INVLID_ROUND
+        });
+        stakedInfos[msg.sender].push(userStakedInfo);
+        tokenToUserStakedInfo[tokenId] = userStakedInfo;
+        
         nftContract.transferFrom(msg.sender, address(this), tokenId);
 
         emit Stake(msg.sender, tokenId);
@@ -200,13 +212,13 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
 
     function getTokenPower(uint tokenId) public view returns(uint power){
         ISoccerStarNft.SoccerStar memory cardInfo = ISoccerStarNft(address(nftContract)).getCardProperty(tokenId);
-        require(0 != cardInfo.starLevel, "CARD_UNREAL");
+        require(cardInfo.starLevel > 0, "CARD_UNREAL");
         // The power equation: power = gradient * 10 ^ (starLevel -1)
         return cardInfo.gradient.exp(cardInfo.starLevel.sub(1));
     }
 
     // user redeem one or more nft cards
-    function redeem(uint tokenId) public override ownToken(tokenId){
+    function redeem(uint tokenId) public override onlyStarted ownToken(tokenId){
         require(isStaked(tokenId), "TOKEN_NOT_STAKED");
 
         // check if need to close the old round
@@ -240,7 +252,7 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
     }
 
     // withdraw token after the unfrozen period
-    function withdraw(uint tokenId) public override ownToken(tokenId){
+    function withdraw(uint tokenId) public override onlyStarted ownToken(tokenId){
         require(isWithdrawAble(tokenId), "TOKEN_NOT_WITHDRAWABLE");
 
         // check if need to close the old round
@@ -258,16 +270,40 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
         uint totalRewards = 0;
         uint curRound = getCurrentRound();
 
+        if( 0 == depositInfos.length){
+            return 0;
+        }
+
         // go through to accurate the rewards
         UserStakedInfo[] storage userStakedInfos = stakedInfos[user];
         for(uint i = 0; i < userStakedInfos.length; i++){
+
             UserStakedInfo storage userStakedInfo = userStakedInfos[i];
-            if(!userStakedInfo.claimed && curRound > userStakedInfo.round){
-                DepositInfo storage depositInfo = roundToDepositInfos[userStakedInfo.round];
-                if(depositInfo.totalPower > 0
-                 && depositInfo.totalDeposit > 0){
-                    uint share = depositInfo.totalDeposit.mul(getTokenPower(userStakedInfo.tokenId)).div(depositInfo.totalPower);
-                    totalRewards += share;
+            
+            if(curRound != userStakedInfo.round){
+
+                // walk through from the last to the frist
+                for(uint j = depositInfos.length - 1; j >= 0; ){
+                    
+                    DepositInfo storage depositInfo = depositInfos[j];
+
+                    if(depositInfo.round != curRound){
+                        if(depositInfo.round.toInt() == userStakedInfo.claimedRound){
+                            break;
+                        }
+
+                        if(depositInfo.totalPower > 0
+                        && depositInfo.totalDeposit > 0){
+                            totalRewards += depositInfo.totalDeposit.mul(getTokenPower(userStakedInfo.tokenId)).div(depositInfo.totalPower);
+                        }
+                    }
+
+                    // avoid overflow
+                    if(j > 0){
+                        j--;
+                    } else {
+                        break;
+                    }
                 }
             }
         }
@@ -281,29 +317,68 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
         uint totalRewards = 0;
         uint curRound = getCurrentRound();
 
-        UserStakedInfo[] storage userStakedInfos = stakedInfos[user];
+        if(0 == depositInfos.length){
+            return 0;
+        }
 
         // go through to accurate the rewards
+        UserStakedInfo[] storage userStakedInfos = stakedInfos[user];
         for(uint i = 0; i < userStakedInfos.length; i++){
+
             UserStakedInfo storage userStakedInfo = userStakedInfos[i];
-            if(!userStakedInfo.claimed && curRound > userStakedInfo.round){
-                DepositInfo storage depositInfo = roundToDepositInfos[userStakedInfo.round];
-                if(depositInfo.totalPower > 0
-                 && depositInfo.totalDeposit > 0){
-                     uint share = depositInfo.totalDeposit.mul(getTokenPower(userStakedInfo.tokenId)).div(depositInfo.totalPower);
-                    if(markClaim){
-                        userStakedInfo.claimed = true;
-                        depositInfo.totalClaimed = depositInfo.totalClaimed.add(share);
+            
+            int tailRound = INVLID_ROUND;
+
+            if(curRound != userStakedInfo.round){
+
+                // walk through from the last to the frist
+                for(uint j = depositInfos.length - 1; j >= 0; ){
+                    
+                    DepositInfo storage depositInfo = depositInfos[j];
+
+                    if(depositInfo.round != curRound){
+                    
+                        if(depositInfo.round.toInt() == userStakedInfo.claimedRound){
+                            break;
+                        }
+
+                        // record the tail round
+                        if(tailRound == INVLID_ROUND){
+                            tailRound = depositInfo.round.toInt();
+                        }
+
+                        if(depositInfo.totalPower > 0
+                        && depositInfo.totalDeposit > 0){
+                            uint share = depositInfo.totalDeposit
+                            .mul(getTokenPower(userStakedInfo.tokenId))
+                            .div(depositInfo.totalPower);
+
+                            if(markClaim){
+                                depositInfo.totalClaimed = depositInfo.totalClaimed.add(share);
+                            }
+                            totalRewards += share;
+                        }
                     }
-                    totalRewards += share;
+
+                    // avoid overflow
+                    if(j > 0){
+                        j--;
+                    } else {
+                        break;
+                    }
+                }
+
+                if(markClaim){
+                    userStakedInfo.claimedRound = tailRound;
                 }
             }
         }
+
         return totalRewards;
     }
 
     // Claim rewards
-    function claimRewards() public override{
+    function claimRewards() public onlyStarted override{
         // close round
         closeRound();
 
