@@ -61,20 +61,20 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     uint private constant MAX_PUBLIC_ROUND5_SUPERS = 1380;
     uint private constant MAX_PUBLIC_ROUND5_LEGEND = 480;
 
-    uint256 public    preSaleStartTime = 1662739200;//9月10日0时0分0秒
-    uint256 public    saleStartTimeRound1 = 1663603200;//9月20日0时0分0秒
-    uint256 public    saleStartTimeRound2 = 1664208000;//9月27日0时0分0秒
-    uint256 public    saleStartTimeRound3 = 1664812800;//10月4日0时0分0秒
-    uint256 public    saleStartTimeRound4 = 1665417600;//10月11日0时0分0秒
-    uint256 public    saleStartTimeRound5 = 1666022400;//10月18日0时0分0秒
-    uint256 public    revealTime = 1666022422;//10月18日0时0分0秒
+    uint256 private    preSaleStartTime = 1662739200;//9月10日0时0分0秒
+    uint256 private    saleStartTimeRound1 = 1663603200;//9月20日0时0分0秒
+    uint256 private    saleStartTimeRound2 = 1664208000;//9月27日0时0分0秒
+    uint256 private    saleStartTimeRound3 = 1664812800;//10月4日0时0分0秒
+    uint256 private    saleStartTimeRound4 = 1665417600;//10月11日0时0分0秒
+    uint256 private    saleStartTimeRound5 = 1666022400;//10月18日0时0分0秒
+    uint256 private    revealTime = 1666022422;//10月18日0时0分0秒
 
-    uint256 public    preSaleEndTime;
-    uint256 public    saleEndTimeRound1;
-    uint256 public    saleEndTimeRound2;
-    uint256 public    saleEndTimeRound3;
-    uint256 public    saleEndTimeRound4;
-    uint256 public    saleEndTimeRound5;
+    uint256 private    preSaleEndTime;
+    uint256 private    saleEndTimeRound1;
+    uint256 private    saleEndTimeRound2;
+    uint256 private    saleEndTimeRound3;
+    uint256 private    saleEndTimeRound4;
+    uint256 private    saleEndTimeRound5;
 
     address public deadwallet = 0x0000000000000000000000000000000000000000;//将代币打进这个地址就是销毁
     //Keep a track of the number of tokens per address
@@ -129,8 +129,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     address public refundAddress;
     uint256 public remainingMint;
     uint256 public alreadyMint;
-    uint256 public constant maxPresaleUserMintAmount = 2;
-    uint256 public constant maxPubicsaleUserMintAmount = 1;
+    uint256 public maxPresaleUserMintAmount = 3;
+    uint256 public maxPubicsaleUserMintAmount = 10;
     bytes32 public merkleRoot;
 
     mapping(uint256 => bool) public hasRefunded; // users can search if the NFT has been refunded
@@ -162,6 +162,14 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
      */
     function setPaused(bool val) public onlyOwner {
         _paused = val;
+    }
+
+    function setMaxPresaleUserMintAmount(uint256 val) public onlyOwner {
+        maxPresaleUserMintAmount = val;
+    }
+
+    function setMaxPubicsaleUserMintAmount(uint256 val) public onlyOwner {
+        maxPubicsaleUserMintAmount = val;
     }
 
     function setSaleTime(uint _startTime, uint _endTime, uint _revealTime, uint round) external onlyOwner {
