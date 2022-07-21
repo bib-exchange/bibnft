@@ -134,12 +134,12 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
         emit Composed(msg.sender, tokenIds[0], newToken, mode, payMethod);
     }
 
-    function caculateBurnAmount(uint starLevel, uint gradient) internal view returns(uint){
+    function caculateBurnAmount(uint starLevel, uint gradient) public view returns(uint){
         uint decimals = IERC20Metadata(address(bibContract)).decimals();
         return feeRates[(starLevel - 1) * STARLEVEL_RANGE + (gradient - 1)].exp(decimals);
     }
 
-    function caculateBUSDAmount(uint bibAmount) internal view returns(uint){
+    function caculateBUSDAmount(uint bibAmount) public view returns(uint){
         // the price has ORACLE_PRECISION
         uint priceDec = priceOracle.getAssetPrice(address(bibContract));
         return bibAmount.mul(priceDec).div(ORACLE_PRECISION);
