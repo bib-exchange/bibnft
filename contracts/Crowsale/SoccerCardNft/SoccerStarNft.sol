@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity >=0.8.0;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import "../../interfaces/ISoccerStarNft.sol";
 
 interface IERC20MintableBurnable is IERC20 {
     function mint(address, uint256) external;
@@ -23,7 +24,7 @@ interface IERC721MintableBurnable is IERC721 {
     function burn(uint256) external;
 }
 
-contract SoccerStarNft is ERC721A, Ownable, Initializable {
+contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     using Strings for uint;
     uint256 public constant maxMintSupply = 29930;
     uint256 public mintPresalePrice;
@@ -76,7 +77,8 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     uint256 private    saleEndTimeRound4;
     uint256 private    saleEndTimeRound5;
 
-    address public deadwallet = 0x0000000000000000000000000000000000000000;//将代币打进这个地址就是销毁
+    address public deadwallet = 0x0000000000000000000000000000000000000001;
+
     //Keep a track of the number of tokens per address
     mapping(address => uint) nftsPerWallet;
 
@@ -105,14 +107,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     BlindBoxesType public blindBoxes;
     BlindBoxesType constant defaultType = BlindBoxesType.presale;
 
-     struct SoccerStar {
-        string name;
-        string country;
-        string position;
-        uint256 starLevel;//0=1star, 1=2star, 2=3star, 3=4star
-        uint256 gradient;//T0=0, T1=1, T2=2, T3=3
-    }
-
     SoccerStar[] public soccerStars;
 
     modifier onlyWhenNotPaused {
@@ -120,6 +114,9 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         
         _;
     }
+
+    event ComposerChanged(address sender, address oldValue, address newValue);
+    address public composer;
 
     // Sale Status
     bool public publicSaleActive;
@@ -156,6 +153,37 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
         alreadyMint = totalSupply();
     }
 
+    function setComposer(address value) public onlyOwner{
+        require(address(0) != value, "INVALID_ADDRESS");
+        emit ComposerChanged(msg.sender, composer, value);
+        composer = value;
+    }
+
+    modifier onlyComposer(){
+        require(msg.sender == composer, "NEED_COMPOSER");
+        _;
+    }
+
+   // only allow protocol related contract to mint
+    function protocolMint() public override onlyComposer returns(uint tokenId){
+        tokenId = _currentIndex;
+        _mint(msg.sender, 1);
+        require(msg.sender == ownerOf(tokenId), "PROTOCOL_MINT_FAILED");
+    }
+
+    // only allow protocol related contract to mint to burn
+    function protocolBurn(uint tokenId) public onlyComposer override {
+        require(msg.sender == ownerOf(tokenId), "TOKEN_NOT_BELLONG_TO_CALLER");
+        _burn(tokenId);
+        require(msg.sender != ownerOf(tokenId), "PROTOCOL_BRUN_FAILED");
+    }
+
+    // only allow protocol related contract to bind star property
+    function protocolBind(uint tokenId, SoccerStar memory soccerStar) public override onlyComposer{
+        require(msg.sender == ownerOf(tokenId), "TOKEN_NOT_BELLONG_TO_CALLER");
+        cardProperty[tokenId] = soccerStar;
+    }
+    
     /**
     * @dev setPaused makes the contract paused or unpaused
      */
@@ -511,7 +539,7 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     function setStep(uint _step) external onlyOwner {
         sellingStep = Step(_step);
     }
-// 需要识别用户付款但没有收到NFT的情况，自动回退Mint失败资金。
+
     function refund(uint256[] calldata tokenIds) public onlyOwner {
 
         for (uint256 i = 0; i < tokenIds.length; i++) {

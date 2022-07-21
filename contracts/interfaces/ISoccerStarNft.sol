@@ -15,4 +15,13 @@ interface ISoccerStarNft {
     }
 
     function getCardProperty(uint256 tokenId) external view returns(SoccerStar memory);
+
+    // only allow protocol related contract to mint
+    function protocolMint() external returns(uint tokenId);
+
+    // only allow protocol related contract to mint to burn
+    function protocolBurn(uint tokenId) external;
+
+    // only allow protocol related contract to bind star property
+    function protocolBind(uint tokenId, SoccerStar memory soccerStar) external;
 }
