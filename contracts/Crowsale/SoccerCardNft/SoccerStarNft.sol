@@ -151,7 +151,6 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
            notRevealedURI = _notRevealedURI;
     }
 
-
     constructor() ERC721A("SoccerStarNft", "SS") {
         refundAddress = msg.sender;
         alreadyMint = totalSupply();
@@ -493,18 +492,12 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
 
      }
 
-
-
     function ownerMint(uint256 quantity) external onlyOwner onlyWhenNotPaused {
         require(
             _totalMinted() + quantity <= maxMintSupply,
             "Max mint supply reached"
         );
-        _safeMint(msg.sender, quantity);
-
-        for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
-            cardProperty[i] = soccerStars[_currentIndex];
-        }
+         _safeMint(msg.sender, quantity);
 
         for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
             isOwnerMint[i] = true;
