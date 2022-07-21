@@ -61,13 +61,13 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
     uint private constant MAX_PUBLIC_ROUND5_SUPERS = 1380;
     uint private constant MAX_PUBLIC_ROUND5_LEGEND = 480;
 
-    uint256 private    preSaleStartTime = 1662739200;//9月10日0时0分0秒
-    uint256 private    saleStartTimeRound1 = 1663603200;//9月20日0时0分0秒
-    uint256 private    saleStartTimeRound2 = 1664208000;//9月27日0时0分0秒
-    uint256 private    saleStartTimeRound3 = 1664812800;//10月4日0时0分0秒
-    uint256 private    saleStartTimeRound4 = 1665417600;//10月11日0时0分0秒
-    uint256 private    saleStartTimeRound5 = 1666022400;//10月18日0时0分0秒
-    uint256 private    revealTime = 1666022422;//10月18日0时0分0秒
+    uint256 private    preSaleStartTime;
+    uint256 private    saleStartTimeRound1;
+    uint256 private    saleStartTimeRound2;
+    uint256 private    saleStartTimeRound3;
+    uint256 private    saleStartTimeRound4;
+    uint256 private    saleStartTimeRound5;
+    uint256 private    revealTime;
 
     uint256 private    preSaleEndTime;
     uint256 private    saleEndTimeRound1;
@@ -182,22 +182,26 @@ contract SoccerStarNft is ERC721A, Ownable, Initializable {
            saleEndTimeRound1 = _endTime;
            revealTime = _revealTime;
         } else if (round == 3){     
+           saleStartTimeRound2 = _startTime;
+           saleEndTimeRound2 = _endTime;
+           revealTime = _revealTime;
+        } else if (round == 4){
            saleStartTimeRound3 = _startTime;
            saleEndTimeRound3 = _endTime;
            revealTime = _revealTime;
-        } else if (round == 4){
-           saleStartTimeRound4 = _startTime;
-           saleEndTimeRound4 = _endTime;
-           revealTime = _revealTime;
         } else if (round == 5) {
-            saleStartTimeRound5 = _startTime;
-            saleEndTimeRound5 = _endTime;
+            saleStartTimeRound4 = _startTime;
+            saleEndTimeRound4 = _endTime;
           revealTime = _revealTime;
+        } else if (round == 6){     
+           saleStartTimeRound5 = _startTime;
+           saleEndTimeRound5 = _endTime;
+           revealTime = _revealTime;
         }
         
     }
 
-    function setMintPrePrice(uint256 _mintPrice, BlindBoxesType _blindBoxes) public onlyOwner {
+    function setMintPrePrice(uint256 _mintPrice) public onlyOwner {
         mintPresalePrice = _mintPrice;
     }
 
