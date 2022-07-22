@@ -320,7 +320,6 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         }
     }
 
-
     //计算剩余mint的数量
     function caculatePreRemaining() view public returns (uint256) {
             return MAX_PRESALE - totalSupply();
@@ -368,7 +367,6 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         // EVENT：sender,presale,_currentIndex - quantity,quantitty，ramdomseed
          paymentToken.burnFrom(deadwallet, quantity * mintPresalePrice);
     }
-
 
     function publicSaleMint(BlindBoxesType _blindBoxes, uint256 quantity, uint round) external payable onlyWhenNotPaused callerIsUser {
         require(publicSaleActive, "Public sale is not active");

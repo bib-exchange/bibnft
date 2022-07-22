@@ -266,46 +266,64 @@ contract StakedSoccerStarNft is IStakedSoccerStarNft, Ownable {
         emit Withdraw(msg.sender, tokenId);
     }
 
-    function getUnClaimedRewards(address user) public override view returns(uint amount){
-        uint totalRewards = 0;
-        uint curRound = getCurrentRound();
+    function getUnClaimedRewardsByToken(uint tokenId) public view override returns(uint){
+        if(!isStaked(tokenId)){
+            return 0;
+        }
 
         if( 0 == depositInfos.length){
             return 0;
         }
 
+        uint curRound = getCurrentRound();
+        uint totalRewards = 0;
+
+        UserStakedInfo storage userStakedInfo = tokenToUserStakedInfo[tokenId];
+        if(curRound != userStakedInfo.round){
+
+            // walk through from the last to the frist
+            for(uint j = depositInfos.length - 1; j >= 0; ){
+                
+                DepositInfo storage depositInfo = depositInfos[j];
+
+                if(depositInfo.round != curRound){
+                    if(depositInfo.round.toInt() == userStakedInfo.claimedRound){
+                        break;
+                    }
+
+                    if(depositInfo.totalPower > 0
+                    && depositInfo.totalDeposit > 0){
+                        totalRewards += depositInfo.totalDeposit.mul(getTokenPower(userStakedInfo.tokenId)).div(depositInfo.totalPower);
+                    }
+                }
+
+                // avoid overflow
+                if(j > 0){
+                    j--;
+                } else {
+                    break;
+                }
+            }
+        }
+        return totalRewards;
+    }
+
+        // Get unclaimed rewards by a set of the specified tokens
+    function getUnClaimedRewardsByTokens(uint[] memory tokenIds) public view override returns(uint[] memory amount){
+        uint[] memory rewards = new uint[](tokenIds.length);
+        for(uint i = 0; i < tokenIds.length; i++){
+            rewards[i] = getUnClaimedRewardsByToken(tokenIds[i]);
+        }
+        return rewards;
+    }
+
+    function getUnClaimedRewards(address user) public override view returns(uint amount){
+        uint totalRewards = 0;
+
         // go through to accurate the rewards
         UserStakedInfo[] storage userStakedInfos = stakedInfos[user];
         for(uint i = 0; i < userStakedInfos.length; i++){
-
-            UserStakedInfo storage userStakedInfo = userStakedInfos[i];
-            
-            if(curRound != userStakedInfo.round){
-
-                // walk through from the last to the frist
-                for(uint j = depositInfos.length - 1; j >= 0; ){
-                    
-                    DepositInfo storage depositInfo = depositInfos[j];
-
-                    if(depositInfo.round != curRound){
-                        if(depositInfo.round.toInt() == userStakedInfo.claimedRound){
-                            break;
-                        }
-
-                        if(depositInfo.totalPower > 0
-                        && depositInfo.totalDeposit > 0){
-                            totalRewards += depositInfo.totalDeposit.mul(getTokenPower(userStakedInfo.tokenId)).div(depositInfo.totalPower);
-                        }
-                    }
-
-                    // avoid overflow
-                    if(j > 0){
-                        j--;
-                    } else {
-                        break;
-                    }
-                }
-            }
+            totalRewards += getUnClaimedRewardsByToken(userStakedInfos[i].tokenId);
         }
 
         return totalRewards;

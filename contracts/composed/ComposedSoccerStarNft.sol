@@ -131,7 +131,7 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
         uint newToken = tokenContract.protocolMint();
         tokenContract.protocolBind(newToken, soccerStar);
         IERC721(address(tokenContract)).transferFrom(address(this), msg.sender, newToken);
-        emit Composed(msg.sender, tokenIds[0], newToken, mode, payMethod);
+        emit Composed(msg.sender, tokenIds, newToken, mode, payMethod);
     }
 
     function caculateBurnAmount(uint starLevel, uint gradient) public view returns(uint){

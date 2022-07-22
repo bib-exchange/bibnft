@@ -16,8 +16,8 @@ interface IComposedSoccerStarNft {
     // Event when composed success
     event Composed(
     address sender,
-    uint firstToken, 
-    uint targetToken,
+    uint[] tokenIds, 
+    uint composedToken,
     ComposeMode mode,
     PayMethod payMethod
     );
