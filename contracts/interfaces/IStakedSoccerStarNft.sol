@@ -16,7 +16,7 @@ interface IStakedSoccerStarNft {
         uint tokenId;
         uint round;
         uint unfrozenTime;
-        bool claimed;
+        int claimedRound;
     }
 
     // Trigred when adim deposit a specified funds to pool
@@ -52,6 +52,12 @@ interface IStakedSoccerStarNft {
     // user withdraw the spcified token
     function withdraw(uint tokenId) external;
 
+    // Get unclaimed rewards by the specified tokens
+    function getUnClaimedRewardsByToken(uint tokenId) external view returns(uint);
+
+    // Get unclaimed rewards by a set of the specified tokens
+    function getUnClaimedRewardsByTokens(uint[] memory tokenIds) external view returns(uint[] memory amount);
+    
     // Get unclaimed rewards 
     function getUnClaimedRewards(address user) external view returns(uint amount);
 
