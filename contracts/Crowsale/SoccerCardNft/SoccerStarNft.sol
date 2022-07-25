@@ -11,28 +11,16 @@ import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "../../interfaces/ISoccerStarNft.sol";
-
-interface IERC20MintableBurnable is IERC20 {
-    function mint(address, uint256) external;
-
-    function burnFrom(address, uint256) external;
-}
-
-interface IERC721MintableBurnable is IERC721 {
-    function safeMint(address, uint256) external;
-
-    function burn(uint256) external;
-}
+import {SafeMath} from "../../libs/SafeMath.sol";
+import {IBIBOracle} from "../../interfaces/IBIBOracle.sol";
 
 contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     using Strings for uint;
-    uint256 public constant maxMintSupply = 29930;
-    uint256 public mintPresalePrice;
-    uint256 public mintSale1Price;
-    uint256 public mintSale2Price;
-    uint256 public mintSale3Price;
-    uint256 public mintSale4Price;
-    uint256 public mintSale5Price;
+    using SafeMath for uint;
+
+    IERC20 public bibContract;
+    IERC20 public busdContract;
+    IBIBOracle public priceOracle;
 
     //URI of the NFTs when revealed
     string public baseURI;
@@ -43,41 +31,10 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
 
     //Are the NFTs revealed yet ?
     bool public revealed = false;
-    IERC20MintableBurnable public paymentToken;
 
-    uint private constant MAX_PRESALE = 4800;
-    uint private constant MAX_PUBLIC_ROUND1_NORMAL = 1300;
-    uint private constant MAX_PUBLIC_ROUND1_SUPERS = 460;
-    uint private constant MAX_PUBLIC_ROUND1_LEGEND = 160;
-    uint private constant MAX_PUBLIC_ROUND2_NORMAL = 1950;
-    uint private constant MAX_PUBLIC_ROUND2_SUPERS = 690;
-    uint private constant MAX_PUBLIC_ROUND2_LEGEND = 240;
-    uint private constant MAX_PUBLIC_ROUND3_NORMAL = 2600;
-    uint private constant MAX_PUBLIC_ROUND3_SUPERS = 920;
-    uint private constant MAX_PUBLIC_ROUND3_LEGEND = 320;
-    uint private constant MAX_PUBLIC_ROUND4_NORMAL = 3250;
-    uint private constant MAX_PUBLIC_ROUND4_SUPERS = 1150;
-    uint private constant MAX_PUBLIC_ROUND4_LEGEND = 400;
-    uint private constant MAX_PUBLIC_ROUND5_NORMAL = 3900;
-    uint private constant MAX_PUBLIC_ROUND5_SUPERS = 1380;
-    uint private constant MAX_PUBLIC_ROUND5_LEGEND = 480;
+    uint constant public ORACLE_PRECISION = 1e18;
 
-    uint256 private    preSaleStartTime;
-    uint256 private    saleStartTimeRound1;
-    uint256 private    saleStartTimeRound2;
-    uint256 private    saleStartTimeRound3;
-    uint256 private    saleStartTimeRound4;
-    uint256 private    saleStartTimeRound5;
-    uint256 private    revealTime;
-
-    uint256 private    preSaleEndTime;
-    uint256 private    saleEndTimeRound1;
-    uint256 private    saleEndTimeRound2;
-    uint256 private    saleEndTimeRound3;
-    uint256 private    saleEndTimeRound4;
-    uint256 private    saleEndTimeRound5;
-
-    address public deadwallet = 0x0000000000000000000000000000000000000001;
+    address constant public BLACK_HOLE = 0x0000000000000000000000000000000000000001;
 
     //Keep a track of the number of tokens per address
     mapping(address => uint) nftsPerWallet;
@@ -85,72 +42,57 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     // _paused is used to pause the contract in case of an emergency
     bool public _paused;
 
-    enum Step {
-        preSaleMint,
-        publicSaleMintRound1,
-        publicSaleMintRound2,
-        publicSaleMintRound3,
-        publicSaleMintRound4,
-        publicSaleMintRound5,
-        Reveal
-    }
+    uint public maxMintSupply;
 
-    Step public sellingStep;
-    Step constant defaultStep = Step.preSaleMint;
+    uint constant public PRE_SELL_ROUND  = 0;
+    uint constant public PUB_SELL_ROUND1 = 1;
+    uint constant public PUB_SELL_ROUND2 = 2;
+    uint constant public PUB_SELL_ROUND3 = 3;
+    uint constant public PUB_SELL_ROUND4 = 4;
+    uint constant public PUB_SELL_ROUND5 = 5;
+    uint constant public MAX_ROUND = PUB_SELL_ROUND5;
 
-    enum BlindBoxesType {
-        presale,
-        normal,
-        supers,
-        legend
-    }
-    BlindBoxesType public blindBoxes;
-    BlindBoxesType constant defaultType = BlindBoxesType.presale;
 
-    SoccerStar[] public soccerStars;
-
-    modifier onlyWhenNotPaused {
-        require(!_paused, "Contract currently paused");
-        
-        _;
-    }
-
+    event BIBContractChanged(address sender, address oldValue, address newValue);
+    event BUSDContractChanged(address sender, address oldValue, address newValue);
+    event TreasuryChanged(address sender, address oldValue, address newValue);
+    event PriceOracleChanged(address sender, address oldValue, address newValue);
     event ComposerChanged(address sender, address oldValue, address newValue);
+    event SellTimeChanged(address sender, uint oldValue, uint newValue);
+    event Changed(address sender, uint oldValue, uint newValue);
+
     address public composer;
+    address public treasury;
 
-    // Sale Status
-    bool public publicSaleActive;
-    bool public presaleActive;
-    uint256 public refundEndTime;
-
-    address public refundAddress;
-    uint256 public remainingMint;
-    uint256 public alreadyMint;
-    uint256 public maxPresaleUserMintAmount = 3;
     uint256 public maxPubicsaleUserMintAmount = 10;
     bytes32 public merkleRoot;
 
-    mapping(uint256 => bool) public hasRefunded; // users can search if the NFT has been refunded
     mapping(uint256 => bool) public isOwnerMint; // if the NFT was freely minted by owner
     mapping(uint256 => SoccerStar) public cardProperty;
-    mapping(address => SoccerStar[]) public userCardWallet;
 
-    event UpdatesSaleStep(address newAddress, BlindBoxesType blindBoxes, uint256 tokenId, uint256 quantity);
+    // round->boxType->price
+    mapping(uint=>mapping(BlindBoxesType=>uint)) public mintPriceTb;
+    mapping(uint=>mapping(BlindBoxesType=>uint)) public maxAmountTb;
+    mapping(uint=>mapping(BlindBoxesType=>uint)) public mintAmountTb;
+    mapping(address=>mapping(uint=>uint))        public maxAmountPerAddr;
+    mapping(uint=>TimeInfo) public timeInfoTb;
 
-    modifier callerIsUser() {
-        require(tx.origin == msg.sender, "The caller is another contract");
+    constructor(   
+    uint _maxMintSupply, 
+    address _bibContract,
+    address _busdContract,
+    address _treasury,
+    address _priceOracle)ERC721A("SoccerStarNft", "SCSTAR"){
+        maxMintSupply = _maxMintSupply;
+        bibContract = IERC20(_bibContract);
+        busdContract = IERC20(_busdContract);
+        treasury = _treasury;
+        priceOracle = IBIBOracle(_priceOracle);
+    }
+
+    modifier onlyWhenNotPaused {
+        require(!_paused, "PAUSED");
         _;
-    }
-
-    function initialize(string memory _theBaseURI, string memory _notRevealedURI, bytes32 _merkleRoot) initializer public {
-           merkleRoot = _merkleRoot;
-           baseURI = _theBaseURI;
-           notRevealedURI = _notRevealedURI;
-    }
-
-    constructor() ERC721A("SoccerStarNft", "SS") {
-        refundAddress = msg.sender;
-        alreadyMint = totalSupply();
     }
 
     function setComposer(address value) public onlyOwner{
@@ -162,6 +104,40 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     modifier onlyComposer(){
         require(msg.sender == composer, "NEED_COMPOSER");
         _;
+    }
+
+    function  getRemainingAmount(uint round, BlindBoxesType boxType) public view returns(uint){
+        return maxAmountTb[round][boxType].sub(mintAmountTb[round][boxType]);
+    }
+
+    function setBIBContract(address _bibContract) public onlyOwner{
+        require(address(0) != _bibContract, "INVLID_ADDRESS");
+        emit BIBContractChanged(msg.sender, address(bibContract), _bibContract);
+        bibContract = IERC20(_bibContract);
+    }
+
+    function setTreasury(address _treasury) public onlyOwner{
+        require(address(0) != _treasury, "INVLID_ADDRESS");
+        emit TreasuryChanged(msg.sender, treasury, _treasury);
+        treasury = _treasury;
+    }
+
+    function setPriceOracle(address _priceOracle) public onlyOwner{
+        require(address(0) != _priceOracle, "INVLID_ADDRESS");
+        emit PriceOracleChanged(msg.sender, address(priceOracle), _priceOracle);
+        priceOracle = IBIBOracle(_priceOracle);
+    }
+
+    function setBUSDContract(address _busdContract) public onlyOwner{
+        require(address(0) != _busdContract, "INVLID_ADDRESS");
+        emit BUSDContractChanged(msg.sender, address(busdContract), _busdContract);
+        busdContract = IERC20(_busdContract);
+    }
+
+    function caculateBUSDAmount(uint bibAmount) public view returns(uint){
+        // the price has ORACLE_PRECISION
+        uint priceDec = priceOracle.getAssetPrice(address(bibContract));
+        return bibAmount.div(ORACLE_PRECISION).mul(priceDec);
     }
 
    // only allow protocol related contract to mint
@@ -191,116 +167,65 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         _paused = val;
     }
 
-    function setMaxPresaleUserMintAmount(uint256 val) public onlyOwner {
-        maxPresaleUserMintAmount = val;
+    function setMaxMintAmount(uint round, BlindBoxesType boxType, uint amount) public onlyOwner{
+        maxAmountTb[round][boxType] = amount;
     }
 
-    function setMaxPubicsaleUserMintAmount(uint256 val) public onlyOwner {
-        maxPubicsaleUserMintAmount = val;
+    function getMaxMintAmount(uint round, BlindBoxesType boxType) public view returns(uint){
+        return maxAmountTb[round][boxType];
     }
 
-    function setSaleTime(uint _startTime, uint _endTime, uint _revealTime, uint round) external onlyOwner {
+    function setSellTime(uint round, uint _startTime, uint _endTime, uint _revealTime) public onlyOwner {
+        require(round <= MAX_ROUND, "INVLID_ROUND");
+        require(_startTime >= block.timestamp, "INVLID_START_TIME");
+        require(_endTime >= _startTime, "INVLID_END_TIME");
+        require(_revealTime >= _endTime, "INVLID_END_TIME");
 
-         if (round == 1) {
-           preSaleStartTime = _startTime;
-            preSaleEndTime = _endTime;
-            revealTime = _revealTime;
-        } else if (round == 2) {      
-           saleStartTimeRound1 = _startTime;
-           saleEndTimeRound1 = _endTime;
-           revealTime = _revealTime;
-        } else if (round == 3){     
-           saleStartTimeRound2 = _startTime;
-           saleEndTimeRound2 = _endTime;
-           revealTime = _revealTime;
-        } else if (round == 4){
-           saleStartTimeRound3 = _startTime;
-           saleEndTimeRound3 = _endTime;
-           revealTime = _revealTime;
-        } else if (round == 5) {
-            saleStartTimeRound4 = _startTime;
-            saleEndTimeRound4 = _endTime;
-          revealTime = _revealTime;
-        } else if (round == 6){     
-           saleStartTimeRound5 = _startTime;
-           saleEndTimeRound5 = _endTime;
-           revealTime = _revealTime;
-        }
-        
+        timeInfoTb[round] = TimeInfo({
+            startTime: _startTime,
+            endTime: _endTime,
+            revealTime: _revealTime
+        });
     }
 
-    function setMintPrePrice(uint256 _mintPrice) public onlyOwner {
-        mintPresalePrice = _mintPrice;
+    function setMaxMintSupply(uint _maxMintSupply) public onlyOwner{
+        maxMintSupply = _maxMintSupply;
     }
 
-    function setMintSalePrice(uint256 _mintPrice, BlindBoxesType _blindBoxes,uint round) public onlyOwner {
+    function getMaxMintSupply() public view returns(uint){
+        return maxMintSupply;
+    }
 
-        if (round == 1) {
-           if (_blindBoxes == BlindBoxesType.normal) {
+    function setMaxAmountPerAddress(uint _amount) public onlyOwner{
+        maxPubicsaleUserMintAmount = _amount;
+    }
 
-            mintSale1Price = _mintPrice;
-        } else if (_blindBoxes == BlindBoxesType.supers) {
-           
-            mintSale1Price = _mintPrice;
-        } else if (_blindBoxes == BlindBoxesType.legend){
-            
-            mintSale1Price = _mintPrice;
-        }
-        } else if (round == 2) {      
-           if (_blindBoxes == BlindBoxesType.normal) {
+    function getMaxAmountPerAddress() public view returns(uint){
+        return maxPubicsaleUserMintAmount;
+    }
 
-            mintSale2Price = _mintPrice;
-        } else if (_blindBoxes == BlindBoxesType.supers) {
-           
-            mintSale2Price = _mintPrice;
-        } else if (_blindBoxes == BlindBoxesType.legend){
-            
-            mintSale2Price = _mintPrice;
-        }
-        } else if (round == 3){     
-           if (_blindBoxes == BlindBoxesType.normal) {
+    function setMintPrice(uint round, uint256 _mintPrice, BlindBoxesType boxType) public onlyOwner {
+        require(round<= MAX_ROUND, "INVLID_ROUND");
+        mintPriceTb[round][boxType] = _mintPrice;
+    }
 
-            mintSale3Price = _mintPrice;
-        } else if (_blindBoxes == BlindBoxesType.supers) {
-           
-            mintSale3Price = _mintPrice;
-        } else if (_blindBoxes == BlindBoxesType.legend){
-            
-            mintSale3Price = _mintPrice;
-        }
-        } else if (round == 4){
-           if (_blindBoxes == BlindBoxesType.normal) {
+    function getMintPrice(uint round, BlindBoxesType boxType) public view returns(uint){
+        return mintPriceTb[round][boxType];
+    }
 
-            mintSale4Price = _mintPrice;
-        } else if (_blindBoxes == BlindBoxesType.supers) {
-           
-            mintSale4Price = _mintPrice;
-        } else if (_blindBoxes == BlindBoxesType.legend){
-            
-            mintSale4Price = _mintPrice;
-        }
-        } else if (round == 5) {
-           if (_blindBoxes == BlindBoxesType.normal) {
+    function setMerkleRoot(bytes32 _root) external onlyOwner {
+        merkleRoot = _root;
+    }
 
-            mintSale4Price = _mintPrice;
-        } else if (_blindBoxes == BlindBoxesType.supers) {
-           
-             mintSale4Price = _mintPrice;
-        } else if (_blindBoxes == BlindBoxesType.legend){
-            
-            mintSale4Price = _mintPrice;
-        }
-        }
-         
+    function setBaseURI(string memory uri) external onlyOwner {
+        baseURI = uri;
     }
 
      /**
     * @notice Allows to set the revealed variable to true
     **/
-    function reveal() external onlyOwner{
-
-        // require(currentTime() >= revealTime, "Whitelist reveal not start");
-        revealed = true;
+    function reveal(bool _revealed) external onlyOwner{
+        revealed = _revealed;
     }
 
     function getCardProperty(uint256 tokenId) public view override
@@ -308,11 +233,9 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         return cardProperty[tokenId];
     }
 
-
-   function updateReveal(uint[] memory tokenIds, SoccerStar[] memory _soccerStars)
+   function updateProperty(uint[] memory tokenIds, SoccerStar[] memory _soccerStars)
         external
-        onlyOwner
-    {
+        onlyOwner{
         require(tokenIds.length == _soccerStars.length, "NEED_SAME_LENGTH");
         for(uint i = 0; i < _soccerStars.length; i++){
             require(cardProperty[tokenIds[i]].starLevel == 0, "TOKEN_REVEALED");
@@ -320,251 +243,122 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         }
     }
 
-    //计算剩余mint的数量
-    function caculatePreRemaining() view public returns (uint256) {
-            return MAX_PRESALE - totalSupply();
+    function isRoundOpen(uint round) public view returns(bool){
+        TimeInfo storage timeInfo = timeInfoTb[round]; 
+        return (currentTime() >= timeInfo.startTime) 
+        && (currentTime() <= timeInfo.endTime);
     }
 
-    function caculateRound1NormalRemaining() view public returns (uint256) {
-            return MAX_PUBLIC_ROUND1_NORMAL - totalSupply();
-    }
-
-    function getUserCardWallet(address _user) public returns (SoccerStar[] memory) {
-        return userCardWallet[_user];
-    }
-
-    function preSaleMint(uint256 quantity, bytes32[] calldata proof)
+    function preSellMint(uint256 quantity, bytes32[] calldata proof)
         external
         payable
         onlyWhenNotPaused
-        callerIsUser
+        
     {
-        require(presaleActive, "Presale is not active");
-        require(msg.value >= quantity * mintPresalePrice, "Not enough eth sent");
-        require(currentTime() >= preSaleStartTime, "Whitelist Sale has not started yet");
-        require(currentTime() < preSaleEndTime, "Whitelist Sale is finished");
-        require(sellingStep == Step.preSaleMint, "Whitelist sale is not activated");
+        require(isRoundOpen(PRE_SELL_ROUND), "PRE_SELL_ROUND_NOT_OPENED");
         require(
             _isAllowlisted(msg.sender, proof, merkleRoot),
-            "Not on allow list"
+            "NOT_IN_WHITE_LIST"
         );
         require(
-            _numberMinted(msg.sender) + quantity <= maxPresaleUserMintAmount,
-            "Max Presale User Mint amount"
+            _numberMinted(msg.sender).add(quantity) <= getMaxMintAmount(PRE_SELL_ROUND,BlindBoxesType.presale),
+            "EXCEED_MAX_MINT_AMOUNT"
         );
-        require(_totalMinted() + quantity <= MAX_PRESALE, "Max PRESALE mint supply");
+
+        // burn bib tokens
+        uint sales = quantity.mul(getMintPrice(PRE_SELL_ROUND, BlindBoxesType.presale));
+        bibContract.transferFrom(msg.sender, BLACK_HOLE, sales);
 
         _safeMint(msg.sender, quantity);
 
-        emit UpdatesSaleStep(msg.sender, BlindBoxesType.presale, _currentIndex - quantity, quantity);
+        mintAmountTb[PRE_SELL_ROUND][BlindBoxesType.presale] = mintAmountTb[PRE_SELL_ROUND][BlindBoxesType.presale].add(quantity);
 
-        //_currentIndex - quantity is tokenid for
-
-        for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
-            cardProperty[i] = soccerStars[_currentIndex];
-        }
-
-        // EVENT：sender,presale,_currentIndex - quantity,quantitty，ramdomseed
-         paymentToken.burnFrom(deadwallet, quantity * mintPresalePrice);
+        emit Mint(msg.sender, 
+        PRE_SELL_ROUND,
+        BlindBoxesType.presale, 
+        _currentIndex.sub(quantity), 
+        quantity,
+        PayMethod.PAY_BIB,
+        sales);
     }
 
-    function publicSaleMint(BlindBoxesType _blindBoxes, uint256 quantity, uint round) external payable onlyWhenNotPaused callerIsUser {
-        require(publicSaleActive, "Public sale is not active");
+    function isPublicRound(uint round) public pure returns(bool){
+        return (round >= PUB_SELL_ROUND1) && (round <= PUB_SELL_ROUND5);
+    }
 
-         if (round == 1) {
-        require(msg.value >= quantity * mintSale1Price, "Not enough eth sent");
-        require(currentTime() >= saleStartTimeRound1, "public Sale round1 has not started yet");
-        require(currentTime() < saleEndTimeRound1, "public Sale round1 Sale is finished");
-        require(sellingStep == Step.publicSaleMintRound1, "publicSaleMintRound1 sale is not activated");
+    function getPubicRoundMintAmountByUser(address user, uint round) public view returns(uint){
+        return maxAmountPerAddr[user][round];
+    }
+
+    function publicSellMint(
+    uint round, 
+    BlindBoxesType boxType, 
+    uint256 quantity, 
+    PayMethod payMethod) public onlyWhenNotPaused  {
+        require(isPublicRound(round), "NOT_PUBLIC_ROUND_NUM");
+        require(isRoundOpen(round), "ROUND_NOT_OPEN");
+        require(boxType != BlindBoxesType.presale, "PRESALE_BOX_NOT_ALLOWED");
         require(
-            _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
-            "Over mint limit"
-        );
-        
-        if (_blindBoxes == BlindBoxesType.normal) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND1_NORMAL, "Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        } else if (_blindBoxes == BlindBoxesType.supers) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND1_SUPERS,"Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        } else if (_blindBoxes == BlindBoxesType.legend){
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND1_LEGEND, "Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        }
-
-        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
-
-        for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
-            cardProperty[i] = soccerStars[_currentIndex];
-        }
-
-        paymentToken.burnFrom(deadwallet, quantity * mintSale1Price);
-            
-        } else if (round == 2) {
-              require(msg.value >= quantity * mintSale2Price, "Not enough eth sent");
-        require(currentTime() >= saleStartTimeRound2, "public Sale round2 has not started yet");
-        require(currentTime() < saleEndTimeRound2, "public Sale round2 Sale is finished");
-        require(sellingStep == Step.publicSaleMintRound2, "publicSaleMintRound2 sale is not activated");
-        require(
-            _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
-            "Over mint limit"
+             getPubicRoundMintAmountByUser(msg.sender, round).add(quantity) <= getMaxAmountPerAddress(),
+            "EXCEED_ADDRESS_MAX_MINT_AMOUNT"
         );
 
-         if (_blindBoxes == BlindBoxesType.normal) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND2_NORMAL, "Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        } else if (_blindBoxes == BlindBoxesType.supers) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND2_SUPERS,"Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        } else if (_blindBoxes == BlindBoxesType.legend){
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND2_LEGEND, "Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
+        uint sales = quantity.mul(getMintPrice(round, boxType));
+        uint maxMintAmount = getMaxMintAmount(round, boxType);
+
+        if(payMethod == PayMethod.PAY_BIB){
+            // burn out bib
+            bibContract.transferFrom(msg.sender, BLACK_HOLE, sales);
+        } else {
+            // allow half of max nft could be mint
+            maxMintAmount = maxMintAmount.div(2);
+            sales = caculateBUSDAmount(sales);
+
+            // transfer to treasury
+            busdContract.transferFrom(msg.sender, treasury, sales);
         }
-
-        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
-
-          for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
-            cardProperty[i] = soccerStars[_currentIndex];
-        }
-
-        paymentToken.burnFrom(deadwallet, quantity * mintSale2Price);
-
-           
-        } else if (round == 3){
-        require(msg.value >= quantity * mintSale3Price, "Not enough eth sent");
-        require(currentTime() >= saleStartTimeRound3, "public Sale round1 has not started yet");
-        require(currentTime() < saleEndTimeRound3, "public Sale round1 Sale is finished");
-        require(sellingStep == Step.publicSaleMintRound3, "publicSaleMintRound1 sale is not activated");
         require(
-            _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
-            "Over mint limit"
-        );
-        
-        if (_blindBoxes == BlindBoxesType.normal) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND1_NORMAL, "Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        } else if (_blindBoxes == BlindBoxesType.supers) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND1_SUPERS,"Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        } else if (_blindBoxes == BlindBoxesType.legend){
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND1_LEGEND, "Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        }
-
-        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
-
-        for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
-            cardProperty[i] = soccerStars[_currentIndex];
-        }
-
-        paymentToken.burnFrom(deadwallet, quantity * mintSale3Price);
-            
-        } else if (round == 4) {
-             require(msg.value >= quantity * mintSale4Price, "Not enough eth sent");
-        require(currentTime() >= saleStartTimeRound4, "public Sale round4 has not started yet");
-        require(currentTime() < saleEndTimeRound4, "public Sale round4 Sale is finished");
-        require(sellingStep == Step.publicSaleMintRound4, "publicSaleMintRound4 sale is not activated");
-        require(
-            _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
-            "Over mint limit"
+            _numberMinted(msg.sender).add(quantity) <= maxMintAmount,
+            "EXCEED_MAX_MINT_AMOUNT"
         );
 
-        if (_blindBoxes == BlindBoxesType.normal) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND4_NORMAL, "Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        } else if (_blindBoxes == BlindBoxesType.supers) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND4_SUPERS,"Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        } else if (_blindBoxes == BlindBoxesType.legend){
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND4_LEGEND, "Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        }
+        _safeMint(msg.sender, quantity);
 
-        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
+        mintAmountTb[round][boxType] = mintAmountTb[round][boxType].add(quantity);
+        maxAmountPerAddr[msg.sender][round] = maxAmountPerAddr[msg.sender][round].add(quantity);
 
-        for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
-            cardProperty[i] = soccerStars[_currentIndex];
-        }
-
-        paymentToken.burnFrom(deadwallet, quantity * mintSale4Price);
-
-
-        } else if (round == 5) {
-            require(msg.value >= quantity * mintSale5Price, "Not enough eth sent");
-        require(currentTime() >= saleStartTimeRound5, "public Sale round5 has not started yet");
-        require(currentTime() < saleEndTimeRound5, "public Sale round5 Sale is finished");
-        require(sellingStep == Step.publicSaleMintRound5, "publicSaleMintRound5 sale is not activated");
-        require(
-            _numberMinted(msg.sender) + quantity <= maxPubicsaleUserMintAmount,
-            "Over mint limit"
-        );
-
-        if (_blindBoxes == BlindBoxesType.normal) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND5_NORMAL, "Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        } else if (_blindBoxes == BlindBoxesType.supers) {
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND5_SUPERS,"Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        } else if (_blindBoxes == BlindBoxesType.legend){
-            require(_totalMinted() + quantity <= MAX_PUBLIC_ROUND5_LEGEND, "Max mint supply reached");
-            return _safeMint(msg.sender, quantity);
-        }
-
-        emit UpdatesSaleStep(msg.sender, _blindBoxes, _currentIndex - quantity, quantity);
-        
-        for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
-            cardProperty[i] = soccerStars[_currentIndex];
-        }
-
-        paymentToken.burnFrom(deadwallet, quantity * mintSale5Price);
-        
-         }
-
+        emit Mint(msg.sender, 
+        round,
+        boxType, 
+        _currentIndex.sub(quantity), 
+        quantity,
+        payMethod,
+        sales);
      }
 
     function ownerMint(uint256 quantity) external onlyOwner onlyWhenNotPaused {
         require(
-            _totalMinted() + quantity <= maxMintSupply,
-            "Max mint supply reached"
+            _totalMinted() + quantity <= getMaxMintSupply(),
+            "MAX_SUPPLY_REACHED"
         );
+
          _safeMint(msg.sender, quantity);
 
         for (uint256 i = _currentIndex - quantity; i < _currentIndex; i++) {
             isOwnerMint[i] = true;
         }
+
+        emit Mint(msg.sender,
+        PRE_SELL_ROUND, 
+        BlindBoxesType.presale, 
+        _currentIndex.sub(quantity), 
+        quantity,
+        PayMethod.PAY_BIB,
+        0);
     }
 
-    function setStep(uint _step) external onlyOwner {
-        sellingStep = Step(_step);
-    }
-
-    function refund(uint256[] calldata tokenIds) public onlyOwner {
-
-        for (uint256 i = 0; i < tokenIds.length; i++) {
-            uint256 tokenId = tokenIds[i];
-            require(msg.sender == ownerOf(tokenId), "Not token owner");
-            require(!hasRefunded[tokenId], "Already refunded");
-            require(!isOwnerMint[tokenId], "Freely minted NFTs cannot be refunded");
-            hasRefunded[tokenId] = true;
-            transferFrom(msg.sender, refundAddress, tokenId);
-        }
-
-        uint256 refundAmount = tokenIds.length * mintPresalePrice;
-        Address.sendValue(payable(msg.sender), refundAmount);
-    }
-
-    function getRefundGuaranteeEndTime() public view returns (uint256) {
-        return refundEndTime;
-    }
-
-    function currentTime() internal view returns(uint) {
+    function currentTime() public view returns(uint) {
         return block.timestamp;
-    }
-
-    function withdraw() external onlyOwner {
-        require(block.timestamp > refundEndTime, "Refund period not over");
-        uint256 balance = address(this).balance;
-        Address.sendValue(payable(owner()), balance);
     }
 
     function _startTokenId() internal view virtual override returns (uint256) {
@@ -588,28 +382,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         return baseURI;
     }
 
-    function setRefundAddress(address _refundAddress) external onlyOwner {
-        refundAddress = _refundAddress;
-    }
-
-    function setMerkleRoot(bytes32 _root) external onlyOwner {
-        merkleRoot = _root;
-    }
-
-    function setBaseURI(string memory uri) external onlyOwner {
-        baseURI = uri;
-    }
-
     function setNotRevealURI(string memory _notRevealedURI) external onlyOwner {
         notRevealedURI = _notRevealedURI;
-    }
-
-    function togglePresaleStatus() external onlyOwner {
-        presaleActive = !presaleActive;
-    }
-
-    function togglePublicSaleStatus() external onlyOwner {
-        publicSaleActive = !publicSaleActive;
     }
 
     function _leaf(address _account) internal pure returns (bytes32) {
