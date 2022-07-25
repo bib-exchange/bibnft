@@ -14,6 +14,34 @@ interface ISoccerStarNft {
         uint256 gradient;
     }
 
+    // roud->timeInfo
+    struct TimeInfo {
+        uint startTime;
+        uint endTime;
+        uint revealTime;
+    }
+
+    enum BlindBoxesType {
+        presale,
+        normal,
+        supers,
+        legend
+    }
+
+    enum PayMethod{
+        PAY_BIB,
+        PAY_BUSD
+    }
+
+    event Mint(
+        address newAddress, 
+        uint rount,
+        BlindBoxesType blindBoxes, 
+        uint256 tokenIdSt, 
+        uint256 quantity, 
+        PayMethod payMethod, 
+        uint sales);
+
     function getCardProperty(uint256 tokenId) external view returns(SoccerStar memory);
 
     // only allow protocol related contract to mint
