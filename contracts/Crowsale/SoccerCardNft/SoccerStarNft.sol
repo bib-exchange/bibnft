@@ -77,6 +77,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     mapping(address=>mapping(uint=>uint))        public maxAmountPerAddr;
     mapping(uint=>TimeInfo) public timeInfoTb;
 
+    mapping(address=>WhiteListQuota) public userQuta;
+
     constructor(   
     uint _maxMintSupply, 
     address _bibContract,
@@ -158,6 +160,28 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     function protocolBind(uint tokenId, SoccerStar memory soccerStar) public override onlyComposer{
         require(msg.sender == ownerOf(tokenId), "TOKEN_NOT_BELLONG_TO_CALLER");
         cardProperty[tokenId] = soccerStar;
+    }
+
+    function addToWhitelistQuotaBatch(WhiteListQuota[] memory quotas) public override onlyOwner {
+        for(uint i = 0; i < quotas.length; i++){
+            userQuta[quotas[i].user] = quotas[i];
+        }
+    }
+
+    function setWhilelistQuota(WhiteListQuota memory quota) public override onlyOwner{
+        userQuta[quota.user] = quota;
+    }
+
+    function setWhitelistUser(address user, bool canMint) public override onlyOwner{
+        userQuta[user].canMint = canMint;
+    }
+
+    function isUserInWhitelist(address user) public view override returns(bool){
+        return address(0) != userQuta[user].user;
+    }
+
+    function getUserMintableAmount(address user) public view override returns(uint amount){
+        return userQuta[user].quota;
     }
     
     /**
@@ -249,17 +273,15 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         && (currentTime() <= timeInfo.endTime);
     }
 
-    function preSellMint(uint256 quantity, bytes32[] calldata proof)
+    function preSellMint(uint256 quantity)
         external
         payable
         onlyWhenNotPaused
         
     {
         require(isRoundOpen(PRE_SELL_ROUND), "PRE_SELL_ROUND_NOT_OPENED");
-        require(
-            _isAllowlisted(msg.sender, proof, merkleRoot),
-            "NOT_IN_WHITE_LIST"
-        );
+        require(isUserInWhitelist(msg.sender), "USER_NOT_IN_WHITE_LIST");
+        require(getUserMintableAmount(msg.sender) > 0, "USER_HAS_NO_QUOTA");
         require(
             _numberMinted(msg.sender).add(quantity) <= getMaxMintAmount(PRE_SELL_ROUND,BlindBoxesType.presale),
             "EXCEED_MAX_MINT_AMOUNT"
@@ -272,6 +294,9 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         _safeMint(msg.sender, quantity);
 
         mintAmountTb[PRE_SELL_ROUND][BlindBoxesType.presale] = mintAmountTb[PRE_SELL_ROUND][BlindBoxesType.presale].add(quantity);
+        
+        // deducate user presell quota
+        userQuta[msg.sender].quota = userQuta[msg.sender].quota.sub(quantity);
 
         emit Mint(msg.sender, 
         PRE_SELL_ROUND,

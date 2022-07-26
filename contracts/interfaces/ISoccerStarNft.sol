@@ -21,6 +21,12 @@ interface ISoccerStarNft {
         uint revealTime;
     }
 
+    struct WhiteListQuota {
+        address user;
+        uint quota;
+        bool canMint;
+    }
+
     enum BlindBoxesType {
         presale,
         normal,
@@ -41,6 +47,13 @@ interface ISoccerStarNft {
         uint256 quantity, 
         PayMethod payMethod, 
         uint sales);
+
+    // whitelist functions
+    function addToWhitelistQuotaBatch(WhiteListQuota[] memory quotas) external;
+    function setWhilelistQuota(WhiteListQuota memory quota) external;
+    function setWhitelistUser(address user, bool canMint) external;
+    function isUserInWhitelist(address user) external view returns(bool);
+    function getUserMintableAmount(address user) external view returns(uint amount);
 
     function getCardProperty(uint256 tokenId) external view returns(SoccerStar memory);
 
