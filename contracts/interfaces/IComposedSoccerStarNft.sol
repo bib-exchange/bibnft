@@ -17,9 +17,11 @@ interface IComposedSoccerStarNft {
     event Composed(
     address sender,
     uint[] tokenIds, 
+    uint  extraToken,
     uint composedToken,
     ComposeMode mode,
-    PayMethod payMethod
+    PayMethod payMethod,
+    uint payAmount
     );
 
     // Compse a higher leve nft token

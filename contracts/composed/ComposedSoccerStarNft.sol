@@ -114,24 +114,25 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
         // compose new
         ISoccerStarNft.SoccerStar memory soccerStar = tokenContract.getCardProperty(tokenIds[0]);
 
+        uint payAmount = 0;
         if(ComposeMode.COMPOSE_NORMAL == mode) {
             require(msg.sender == IERC721(address(tokenContract)).ownerOf(extralToken), "TOKEN_NOT_BELLOW_TO_SENDER");
-            // burn the extra
+            // burn the extral
             IERC721(address(tokenContract)).transferFrom(msg.sender, BLOCK_HOLE, extralToken);
         } else {
-            uint amount = caculateBurnAmount(soccerStar.starLevel, soccerStar.gradient);
+            payAmount = caculateBurnAmount(soccerStar.starLevel, soccerStar.gradient);
             if(PayMethod.PAY_BIB == payMethod){
-                bibContract.transferFrom(msg.sender, BLOCK_HOLE, amount);
+                bibContract.transferFrom(msg.sender, BLOCK_HOLE, payAmount);
             } else {
-                amount = caculateBUSDAmount(amount);
-                bibContract.transferFrom(msg.sender, treasury, amount);
+                payAmount = caculateBUSDAmount(payAmount);
+                busdContract.transferFrom(msg.sender, treasury, payAmount);
             }
         }
 
         uint newToken = tokenContract.protocolMint();
         tokenContract.protocolBind(newToken, soccerStar);
         IERC721(address(tokenContract)).transferFrom(address(this), msg.sender, newToken);
-        emit Composed(msg.sender, tokenIds, newToken, mode, payMethod);
+        emit Composed(msg.sender, tokenIds, extralToken,newToken, mode, payMethod, payAmount);
     }
 
     function caculateBurnAmount(uint starLevel, uint gradient) public view returns(uint){
