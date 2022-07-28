@@ -72,9 +72,11 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
 
     // round->boxType->price
     mapping(uint=>mapping(BlindBoxesType=>uint)) public mintPriceTb;
+    // round->boxType->amount
     mapping(uint=>mapping(BlindBoxesType=>uint)) public maxAmountTb;
+    // round->boxType->maxAmount
     mapping(uint=>mapping(BlindBoxesType=>uint)) public mintAmountTb;
-    mapping(address=>mapping(uint=>uint))        public maxAmountPerAddr;
+    mapping(address=>mapping(uint=>uint))        public mintAmountPerAddrTb;
     mapping(uint=>TimeInfo) public timeInfoTb;
 
     mapping(address=>WhiteListQuota) public userQuta;
@@ -276,14 +278,12 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     function preSellMint(uint256 quantity)
         external
         payable
-        onlyWhenNotPaused
-        
-    {
+        onlyWhenNotPaused{
         require(isRoundOpen(PRE_SELL_ROUND), "PRE_SELL_ROUND_NOT_OPENED");
         require(isUserInWhitelist(msg.sender), "USER_NOT_IN_WHITE_LIST");
-        require(getUserMintableAmount(msg.sender) > 0, "USER_HAS_NO_QUOTA");
+        require(getUserMintableAmount(msg.sender) >= quantity, "USER_HAS_NO_QUOTA");
         require(
-            _numberMinted(msg.sender).add(quantity) <= getMaxMintAmount(PRE_SELL_ROUND,BlindBoxesType.presale),
+           getRemainingAmount(PRE_SELL_ROUND,BlindBoxesType.presale) >=  quantity,
             "EXCEED_MAX_MINT_AMOUNT"
         );
 
@@ -312,7 +312,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     }
 
     function getPubicRoundMintAmountByUser(address user, uint round) public view returns(uint){
-        return maxAmountPerAddr[user][round];
+        return mintAmountPerAddrTb[user][round];
     }
 
     function publicSellMint(
@@ -324,33 +324,34 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         require(isRoundOpen(round), "ROUND_NOT_OPEN");
         require(boxType != BlindBoxesType.presale, "PRESALE_BOX_NOT_ALLOWED");
         require(
-             getPubicRoundMintAmountByUser(msg.sender, round).add(quantity) <= getMaxAmountPerAddress(),
-            "EXCEED_ADDRESS_MAX_MINT_AMOUNT"
-        );
+                getPubicRoundMintAmountByUser(msg.sender, round).add(quantity) <= getMaxAmountPerAddress(),
+                "EXCEED_ADDRESS_MAX_MINT_AMOUNT"
+            );
 
         uint sales = quantity.mul(getMintPrice(round, boxType));
-        uint maxMintAmount = getMaxMintAmount(round, boxType);
+        uint remainingAmount = getRemainingAmount(round, boxType);
 
         if(payMethod == PayMethod.PAY_BIB){
             // burn out bib
             bibContract.transferFrom(msg.sender, BLACK_HOLE, sales);
         } else {
-            // allow half of max nft could be mint
-            maxMintAmount = maxMintAmount.div(2);
             sales = caculateBUSDAmount(sales);
+
+            // half the remainning amount
+            remainingAmount = remainingAmount.div(2);
 
             // transfer to treasury
             busdContract.transferFrom(msg.sender, treasury, sales);
         }
         require(
-            _numberMinted(msg.sender).add(quantity) <= maxMintAmount,
+           remainingAmount >=  quantity,
             "EXCEED_MAX_MINT_AMOUNT"
         );
 
         _safeMint(msg.sender, quantity);
 
         mintAmountTb[round][boxType] = mintAmountTb[round][boxType].add(quantity);
-        maxAmountPerAddr[msg.sender][round] = maxAmountPerAddr[msg.sender][round].add(quantity);
+        mintAmountPerAddrTb[msg.sender][round] = mintAmountPerAddrTb[msg.sender][round].add(quantity);
 
         emit Mint(msg.sender, 
         round,
