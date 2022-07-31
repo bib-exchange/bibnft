@@ -456,6 +456,6 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         offers.pop();
         delete offerTb[offerId];
 
-        emit CancelOffer(msg.sender, offerId);
+        emit CancelOffer(msg.sender, orderId, offerId);
     }
 }
