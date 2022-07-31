@@ -36,9 +36,6 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
 
     address constant public BLACK_HOLE = 0x0000000000000000000000000000000000000001;
 
-    //Keep a track of the number of tokens per address
-    mapping(address => uint) nftsPerWallet;
-
     // _paused is used to pause the contract in case of an emergency
     bool public _paused;
 
@@ -51,7 +48,6 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     uint constant public PUB_SELL_ROUND4 = 4;
     uint constant public PUB_SELL_ROUND5 = 5;
     uint constant public MAX_ROUND = PUB_SELL_ROUND5;
-
 
     event BIBContractChanged(address sender, address oldValue, address newValue);
     event BUSDContractChanged(address sender, address oldValue, address newValue);
@@ -79,7 +75,16 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     mapping(address=>mapping(uint=>uint))        public mintAmountPerAddrTb;
     mapping(uint=>TimeInfo) public timeInfoTb;
 
-    mapping(address=>WhiteListQuota) public userQuta;
+    struct QuotaTracker {
+        uint quota;
+        uint used;
+    }
+
+    // track busd quota per public round
+    mapping(uint=>QuotaTracker) public busdQuotaPerPubRoundTb;
+
+    // track user quota at pre-round
+    mapping(address=>QuotaTracker) public userQutaPreRoundTb;
 
     constructor(   
     uint _maxMintSupply, 
@@ -164,26 +169,43 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         cardProperty[tokenId] = soccerStar;
     }
 
-    function addToWhitelistQuotaBatch(WhiteListQuota[] memory quotas) public override onlyOwner {
-        for(uint i = 0; i < quotas.length; i++){
-            userQuta[quotas[i].user] = quotas[i];
+    function addUserQuotaPreRoundBatch(address[] memory users, uint[] memory quotas) public override onlyOwner {
+        require(users.length == quotas.length, "SHOULD_BE_SAME_LENGTH");
+        for(uint i = 0; i < users.length; i++){
+            userQutaPreRoundTb[users[i]].quota = quotas[i];
         }
     }
 
-    function setWhilelistQuota(WhiteListQuota memory quota) public override onlyOwner{
-        userQuta[quota.user] = quota;
+    function setUserQuotaPreRound(address user, uint quota) public override onlyOwner{
+        userQutaPreRoundTb[user].quota = quota;
     }
 
-    function setWhitelistUser(address user, bool canMint) public override onlyOwner{
-        userQuta[user].canMint = canMint;
+    function getUserQuotaPreRound(address user) public override view returns(uint){
+        return userQutaPreRoundTb[user].quota;
     }
 
-    function isUserInWhitelist(address user) public view override returns(bool){
-        return address(0) != userQuta[user].user;
+    function getUserRemainningQuotaPreRound(address user) public view override returns(uint){
+        return userQutaPreRoundTb[user].quota.sub(userQutaPreRoundTb[user].used);
     }
 
-    function getUserMintableAmount(address user) public view override returns(uint amount){
-        return userQuta[user].quota;
+    function setBUSDQuotaPerPubRound(uint round, uint quota) public override onlyOwner{
+        require(isPublicRound(round), "NOT_PUBLIC_ROUND");
+        busdQuotaPerPubRoundTb[round].quota = quota;
+    }
+
+    function getBUSDQuotaPerPubRound(uint round) public view override returns(uint){
+        require(isPublicRound(round), "NOT_PUBLIC_ROUND");
+        return busdQuotaPerPubRoundTb[round].quota;
+    }
+
+    function getBUSDUsedQuotaPerPubRound(uint round) public view override returns(uint){
+        require(isPublicRound(round), "NOT_PUBLIC_ROUND");
+        return busdQuotaPerPubRoundTb[round].used;
+    }
+
+    function getBUSDRemainningQuotaPerPubRound(uint round) public view returns(uint){
+        require(isPublicRound(round), "NOT_PUBLIC_ROUND");
+        return busdQuotaPerPubRoundTb[round].quota.sub(busdQuotaPerPubRoundTb[round].used);
     }
     
     /**
@@ -280,8 +302,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         payable
         onlyWhenNotPaused{
         require(isRoundOpen(PRE_SELL_ROUND), "PRE_SELL_ROUND_NOT_OPENED");
-        require(isUserInWhitelist(msg.sender), "USER_NOT_IN_WHITE_LIST");
-        require(getUserMintableAmount(msg.sender) >= quantity, "USER_HAS_NO_QUOTA");
+        require(getUserRemainningQuotaPreRound(msg.sender) >= quantity, "USER_HAS_NO_QUOTA");
         require(
            getRemainingAmount(PRE_SELL_ROUND,BlindBoxesType.presale) >=  quantity,
             "EXCEED_MAX_MINT_AMOUNT"
@@ -296,7 +317,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         mintAmountTb[PRE_SELL_ROUND][BlindBoxesType.presale] = mintAmountTb[PRE_SELL_ROUND][BlindBoxesType.presale].add(quantity);
         
         // deducate user presell quota
-        userQuta[msg.sender].quota = userQuta[msg.sender].quota.sub(quantity);
+        userQutaPreRoundTb[msg.sender].used = userQutaPreRoundTb[msg.sender].used.add(quantity);
 
         emit Mint(msg.sender, 
         PRE_SELL_ROUND,
@@ -323,31 +344,29 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         require(isPublicRound(round), "NOT_PUBLIC_ROUND_NUM");
         require(isRoundOpen(round), "ROUND_NOT_OPEN");
         require(boxType != BlindBoxesType.presale, "PRESALE_BOX_NOT_ALLOWED");
-        require(
-                getPubicRoundMintAmountByUser(msg.sender, round).add(quantity) <= getMaxAmountPerAddress(),
-                "EXCEED_ADDRESS_MAX_MINT_AMOUNT"
-            );
+
+        // check constraint per address 
+        require(getPubicRoundMintAmountByUser(msg.sender, round).add(quantity) <= getMaxAmountPerAddress(),
+                "EXCEED_ADDRESS_MAX_MINT_AMOUNT");
+        // check constraint per round && box type 
+        require(getRemainingAmount(round, boxType) >=  quantity,
+                "EXCEED_MAX_MINT_AMOUNT");
 
         uint sales = quantity.mul(getMintPrice(round, boxType));
-        uint remainingAmount = getRemainingAmount(round, boxType);
-
         if(payMethod == PayMethod.PAY_BIB){
             // burn out bib
             bibContract.transferFrom(msg.sender, BLACK_HOLE, sales);
         } else {
+            //check BUSD quota
+            require(getBUSDRemainningQuotaPerPubRound(round) >= quantity, "EXCEED_MAX_BUSD_QUOTA");
             sales = caculateBUSDAmount(sales);
-
-            // half the remainning amount
-            remainingAmount = remainingAmount.div(2);
 
             // transfer to treasury
             busdContract.transferFrom(msg.sender, treasury, sales);
-        }
-        require(
-           remainingAmount >=  quantity,
-            "EXCEED_MAX_MINT_AMOUNT"
-        );
 
+            // update used quota
+            busdQuotaPerPubRoundTb[round].used = busdQuotaPerPubRoundTb[round].used.add(quantity);
+        }
         _safeMint(msg.sender, quantity);
 
         mintAmountTb[round][boxType] = mintAmountTb[round][boxType].add(quantity);
