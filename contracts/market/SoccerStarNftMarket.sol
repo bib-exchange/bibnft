@@ -15,6 +15,8 @@ import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     using SafeMath for uint;
 
+    address public treasury;
+
     IERC20 public bibContract;
     IERC20 public busdContract;
     ISoccerStarNft public tokenContract;
@@ -23,11 +25,13 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     event BIBContractChanged(address sender, address oldValue, address newValue);
     event BUSDContractChanged(address sender, address oldValue, address newValue);
     event FeeRatioChanged(address sender, uint oldValue, uint newValue);
+    event RoyaltyRatioChanged(address sender, uint oldValue, uint newValue);
 
     uint public nextOrderIndex;
     uint public nextOfferIndex;
 
-    uint public feeRatio;
+    uint public feeRatio = 25;
+    uint public royaltyRatio = 75;
     uint public constant FEE_RATIO_DIV = 1000;
 
     // orders in the market
@@ -42,13 +46,19 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     mapping(uint=>Offer) public offerTb;
 
     constructor(
+    address _treasury,
     address _tokenContract,
     address _bibContract,
     address _busdContract
     ){
+        treasury = _treasury;
         tokenContract = ISoccerStarNft(_tokenContract);
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
+    }
+
+    function getBlockTime() public override view returns(uint){
+        return block.timestamp;
     }
 
     function setTokenContract(address _tokenContract) public onlyOwner{
@@ -69,37 +79,45 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         busdContract = IERC20(_busdContract);
     }
 
-    function setFeeRatio(uint _feeRatio) public onlyOwner{
+    function setFeeRatio(uint _feeRatio) public override onlyOwner{
         require(_feeRatio <= FEE_RATIO_DIV, "INVALID_RATIO");
         emit FeeRatioChanged(msg.sender,feeRatio, _feeRatio);
         feeRatio = _feeRatio;
     }
 
+   function setRoyaltyRatio(uint _royaltyRatio) override public onlyOwner {
+       require(_royaltyRatio <= FEE_RATIO_DIV, "INVALID_ROYALTY_RATIO");
+       emit RoyaltyRatioChanged(msg.sender, royaltyRatio, _royaltyRatio);
+       royaltyRatio = _royaltyRatio;
+   }
 
     // user create a order
-    function openOrder(uint tokenId, PayMethod payMethod, uint price) public override payable{
+    function openOrder(address issuer, uint tokenId, PayMethod payMethod, uint price, uint expiration) public override payable{
+        require(address(0) != issuer, "INVALID_ISSURE");
+        require(expiration > block.timestamp, "EXPIRATION_TOO_SMALL");
         require(price > 0, "PRICE_NOT_BE_ZEROR");
-        require(msg.sender == IERC721(address(tokenContract)).ownerOf(tokenId), 
-        "TOKEN_NOT_BELLOW_TO_SENDER");
+        require(msg.sender == IERC721(address(issuer)).ownerOf(tokenId), 
+        "TOKEN_NOT_BELLONG_TO_SENDER");
    
         // delegate token to protocol
-        IERC721(address(tokenContract)).transferFrom(msg.sender, address(this), tokenId);
+        IERC721(address(issuer)).transferFrom(msg.sender, address(this), tokenId);
 
         // record order
         Order memory order = Order({
+            issuer: issuer,
             orderId: nextOrderIndex++,
             tokenId: tokenId,
             owner: msg.sender,
             payMethod: payMethod,
             price: price,
-            timeStamp: block.timestamp
+            expiration: expiration
         });
 
         orders.push(order.orderId);
         userOrderTb[msg.sender].push(order.orderId);
         orderTb[order.orderId] = order;
 
-        emit OpenOrder(msg.sender,order.orderId, tokenId, payMethod, price);
+        emit OpenOrder(issuer, msg.sender, order.orderId, tokenId, payMethod, price, expiration);
     }
 
     // get orders by page
@@ -156,37 +174,43 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         return ret;
     }
 
-    function caculateFees(uint amount) view public returns(uint){
+    function caculateFees(uint amount) view public returns(uint, uint ){
         // caculate owner fee + taker fee
-        return amount.mul(feeRatio).div(FEE_RATIO_DIV);
+        return (amount.mul(feeRatio).div(FEE_RATIO_DIV), amount.mul(royaltyRatio).div(FEE_RATIO_DIV));
     }
 
     // Buyer accept the price and makes a deal with the sepcific order
     function acceptOffer(uint orderId) public  override payable {
         Order storage order = orderTb[orderId];
-        require(order.timeStamp > 0,"INVALID_ORDER");
+        require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender != order.owner, "SHOULD_NOT_BE_ORDER_OWNER");
+        require(order.expiration > block.timestamp, "ORDER_EXPIRED");
 
         // aculate sales
-        uint fee = caculateFees(order.price);
-        uint amount = order.price.sub(fee);
+        (uint txFee, uint royaltyFee )= caculateFees(order.price);
+        uint amount = order.price.sub(txFee).sub(royaltyFee);
+
+        // fee + royalty goese to BIB treasury
         if(order.payMethod == PayMethod.PAY_BNB){
             require(msg.value == order.price, "INSUFFICIENT_FUNDS");
             payable(address(order.owner)).transfer(amount);
+            payable(address(treasury)).transfer(royaltyFee.add(txFee));
         } else if(order.payMethod == PayMethod.PAY_BUSD){
             busdContract.transferFrom(msg.sender, order.owner, amount);
+            busdContract.transferFrom(msg.sender, treasury, royaltyFee.add(txFee));
         } else {
             bibContract.transferFrom(msg.sender, order.owner, amount);
+            bibContract.transferFrom(msg.sender, treasury, royaltyFee.add(txFee));
         }
 
         // send token 
-        IERC721(address(tokenContract)).transferFrom(address(this), msg.sender, order.tokenId);
+        IERC721(address(order.issuer)).transferFrom(address(this), msg.sender, order.tokenId);
 
         emit AcceptOffer(
                 msg.sender, 
                 order.owner,
                 msg.sender,
-                fee,
+                txFee.add(royaltyFee),
                 orderId,
                 0,
                 order.payMethod, 
@@ -202,31 +226,39 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     // Owner accept the offer and make a deal
     function acceptOffer(uint orderId, uint offerId) public  override payable{
         Order storage order = orderTb[orderId];
-        require(order.timeStamp > 0,"INVALID_ORDER");
+        require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
+        require(order.expiration > block.timestamp, "ORDER_EXPIRED");
 
         Offer storage offer = offerTb[offerId];
+        require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
         require(address(0) != offer.buyer, "INVALID_OFFER_ID");
 
         // aculate sales
-        uint fee = caculateFees(offer.bid);
-        uint amount = offer.bid.sub(fee);
+       (uint txFee, uint royaltyFee )= caculateFees(order.price);
+        uint amount = order.price.sub(txFee).sub(royaltyFee);
+
+        // fee + royalty goese to BIB treasury
         if(order.payMethod == PayMethod.PAY_BNB){
+            require(msg.value == order.price, "INSUFFICIENT_FUNDS");
             payable(address(order.owner)).transfer(amount);
+            payable(address(treasury)).transfer(royaltyFee.add(txFee));
         } else if(order.payMethod == PayMethod.PAY_BUSD){
-            busdContract.transfer(order.owner, amount);
+            busdContract.transferFrom(msg.sender, order.owner, amount);
+            busdContract.transferFrom(msg.sender, treasury, royaltyFee.add(txFee));
         } else {
-            bibContract.transfer(order.owner, amount);
+            bibContract.transferFrom(msg.sender, order.owner, amount);
+            bibContract.transferFrom(msg.sender, treasury, royaltyFee.add(txFee));
         }
 
         // send token 
-        IERC721(address(tokenContract)).transferFrom(address(this), offer.buyer, order.tokenId);
+        IERC721(address(order.issuer)).transferFrom(address(this), offer.buyer, order.tokenId);
 
         emit AcceptOffer(
                 msg.sender, 
                 offer.buyer,
                 order.owner,
-                fee,
+                txFee.add(royaltyFee),
                 orderId,
                 offerId,
                 order.payMethod, 
@@ -242,18 +274,19 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     // Owner updates order price
     function updateOrderPrice(uint orderId, uint price) public override payable{
         Order storage order = orderTb[orderId];
-        require(order.timeStamp > 0,"INVALID_ORDER");
-        require(price > 0, "PRICE_LE_ZERO");
+        require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
+        require(order.expiration > block.timestamp, "ORDER_EXPIRED");
+        require(price > 0, "PRICE_LE_ZERO");
 
         emit UpdateOrderPrice(msg.sender, order.price, price);
         order.price = price;
-        order.timeStamp = block.timestamp;
     }
 
     function _closeOrder(uint orderId) internal {
         Order storage order = orderTb[orderId];
-        require(order.timeStamp > 0,"INVALID_ORDER");
+        require(address(0) != order.issuer,"INVALID_ORDER");
+        require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
 
         uint indexToRm = orders.length;
         for(uint i = 0; i < orders.length; i++){
@@ -308,7 +341,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     // Owner close the specific order if not dealed
     function closeOrder(uint orderId) public override{
         Order storage order = orderTb[orderId];
-        require(order.timeStamp > 0,"INVALID_ORDER");
+        require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
 
         // refund commodity and currency
@@ -320,9 +353,11 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     }
 
     // Buyer make a offer to the specific order
-    function makeOffer(uint orderId, uint price) public override payable{
+    function makeOffer(uint orderId, uint price, uint expiration) public override payable{
         Order storage order = orderTb[orderId];
-        require(order.timeStamp > 0,"INVALID_ORDER");
+        require(address(0) != order.issuer,"INVALID_ORDER");
+        require(msg.sender != order.owner, "CANT_MAKE_OFFER_WITH_SELF");
+        require(expiration > block.timestamp, "EXPIRATION_TOOL_SMALL");
         require(price > 0, "PRICE_NOT_BE_ZEROR");
 
         // check if has made offer before
@@ -345,22 +380,24 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
             offerId: nextOfferIndex,
             buyer: msg.sender,
             bid: price,
-            timeStamp: block.timestamp
+            expiration: expiration
         });
 
         orderOfferTb[orderId].push(offer.offerId);
         offerTb[nextOfferIndex] = offer;
 
-        emit MakeOffer(msg.sender,  order.owner, orderId, nextOfferIndex++, price);
+        emit MakeOffer(msg.sender,  order.owner, orderId, nextOfferIndex++, price, expiration);
     }
 
     // Buyer udpate offer bid price
     function updateOffer(uint orderId, uint offerId, uint price) public override payable{
         Order storage order = orderTb[orderId];
-        require(order.timeStamp > 0,"INVALID_ORDER");
+        require(address(0) != order.issuer,"INVALID_ORDER");
+        require(order.expiration > block.timestamp, "ORDER_EXPIRED");
 
         Offer storage offer = offerTb[offerId];
         require(msg.sender != offer.buyer, "INVALID_OFFER_ID");
+        require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
         require(price > 0, "PRICE_NOT_BE_ZEROR");
         
         uint delt  = 0;
@@ -387,13 +424,12 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         emit UpdateOfferPrice(msg.sender, offer.bid, price);
 
         offer.bid = price;
-        offer.timeStamp = block.timestamp;
     }
 
     // Buyer cancle the specific order
     function cancelOffer(uint orderId, uint offerId) public override{
         Order storage order = orderTb[orderId];
-        require(order.timeStamp > 0,"INVALID_ORDER");
+        require(address(0) != order.issuer,"INVALID_ORDER");
 
         Offer storage offer = offerTb[offerId];
         require(msg.sender == offer.buyer, "SHOULD_BE_BUYER");

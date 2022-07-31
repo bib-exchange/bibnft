@@ -10,7 +10,7 @@ interface ISoccerStarNft {
         string position;
         // range [1,4]
         uint256 starLevel;
-        // rage [1,4]
+        // range [1,4]
         uint256 gradient;
     }
 
@@ -19,12 +19,6 @@ interface ISoccerStarNft {
         uint startTime;
         uint endTime;
         uint revealTime;
-    }
-
-    struct WhiteListQuota {
-        address user;
-        uint quota;
-        bool canMint;
     }
 
     enum BlindBoxesType {
@@ -49,13 +43,17 @@ interface ISoccerStarNft {
         uint sales);
 
     // whitelist functions
-    function addToWhitelistQuotaBatch(WhiteListQuota[] memory quotas) external;
-    function setWhilelistQuota(WhiteListQuota memory quota) external;
-    function setWhitelistUser(address user, bool canMint) external;
-    function isUserInWhitelist(address user) external view returns(bool);
-    function getUserMintableAmount(address user) external view returns(uint amount);
+    function addUserQuotaPreRoundBatch(address[] memory users,uint[] memory quotas) external;
+    function setUserQuotaPreRound(address user, uint quota) external;
+    function getUserRemainningQuotaPreRound(address user) external view returns(uint);
+    function getUserQuotaPreRound(address user) external view returns(uint);
 
     function getCardProperty(uint256 tokenId) external view returns(SoccerStar memory);
+
+    // BUSD quota
+    function setBUSDQuotaPerPubRound(uint round, uint quota) external;
+    function getBUSDQuotaPerPubRound(uint round) external view returns(uint);
+    function getBUSDUsedQuotaPerPubRound(uint round) external view returns(uint);
 
     // only allow protocol related contract to mint
     function protocolMint() external returns(uint tokenId);

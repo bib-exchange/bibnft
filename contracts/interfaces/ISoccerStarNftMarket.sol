@@ -8,16 +8,17 @@ interface ISoccerStarNftMarket {
         uint offerId;
         address buyer;
         uint bid;
-        uint timeStamp;
+        uint expiration;
     }
 
     struct Order {
+        address issuer;
         uint orderId;
         uint tokenId;
         address owner;
         PayMethod payMethod;
         uint price;
-        uint timeStamp;
+        uint expiration;
     }
 
     enum PayMethod {
@@ -26,7 +27,7 @@ interface ISoccerStarNftMarket {
         PAY_BIB
     }
 
-    event OpenOrder(address sender, uint orderId, uint tokenId, PayMethod payMethod, uint price);
+    event OpenOrder(address sender, address issuer, uint orderId, uint tokenId, PayMethod payMethod, uint price, uint expiration);
 
     event AcceptOffer(
         address sender, 
@@ -45,10 +46,16 @@ interface ISoccerStarNftMarket {
     event CloseOrder(address sender, uint orderId);
     event CancelOffer(address sender, uint offerId);
 
-    event MakeOffer(address buyer, address owner, uint orderId, uint offerId, uint price);
+    event MakeOffer(address buyer, address owner, uint orderId, uint offerId, uint price, uint expiration);
+
+    function setRoyaltyRatio(uint feeRatio) external;
+
+    function setFeeRatio(uint feeRatio) external;
+
+    function getBlockTime() external view returns(uint);
 
     // user create a order
-    function openOrder(uint tokenId, PayMethod payMethod, uint price) payable external;
+    function openOrder(address issuer, uint tokenId, PayMethod payMethod, uint price, uint expiration) payable external;
 
     // get user orders by page
     function getUserOrdersByPage(address user, uint pageSt, uint pageSz) 
@@ -71,7 +78,7 @@ interface ISoccerStarNftMarket {
     function closeOrder(uint orderId) external;
 
     // Buyer make a offer to the specific order
-    function makeOffer(uint orderId, uint price) external payable;
+    function makeOffer(uint orderId, uint price, uint expiration) external payable;
 
     // Buyer udpate offer bid price
     function updateOffer(uint orderId, uint offerId, uint price) external payable;
@@ -82,7 +89,4 @@ interface ISoccerStarNftMarket {
      // get offer of the specific order by page
     function getOrderOffersByPage(uint orderId, uint pageSt, uint pageSz) 
     external view returns(Offer[] memory);
-
-
-
 }
