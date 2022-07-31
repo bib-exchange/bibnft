@@ -40,8 +40,8 @@ interface ISoccerStarNftMarket {
         uint price
     );
 
-    event UpdateOrderPrice(address sender, uint oldPrice, uint newPrice);
-    event UpdateOfferPrice(address sender, uint oldPrice, uint newPrice);
+    event UpdateOrderPrice(address sender, uint orderId, uint oldPrice, uint newPrice);
+    event UpdateOfferPrice(address sender, uint orderId, uint offerId, uint oldPrice, uint newPrice);
 
     event CloseOrder(address sender, uint orderId);
     event CancelOffer(address sender, uint offerId);

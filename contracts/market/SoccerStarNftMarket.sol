@@ -279,7 +279,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         require(order.expiration > block.timestamp, "ORDER_EXPIRED");
         require(price > 0, "PRICE_LE_ZERO");
 
-        emit UpdateOrderPrice(msg.sender, order.price, price);
+        emit UpdateOrderPrice(msg.sender, orderId, order.price, price);
         order.price = price;
     }
 
@@ -421,7 +421,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
             }
         }
 
-        emit UpdateOfferPrice(msg.sender, offer.bid, price);
+        emit UpdateOfferPrice(msg.sender, orderId, offerId, offer.bid, price);
 
         offer.bid = price;
     }
