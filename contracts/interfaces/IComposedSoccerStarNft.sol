@@ -24,16 +24,6 @@ interface IComposedSoccerStarNft {
     uint payAmount
     );
 
-
-    function  bibContract() external view returns(address);
-
-    function  busdContract() external view returns(address);
-    function  priceOracle() external view returns(address);
-
-
-    function  tokenContract() external view returns(address);
-    function setTokenContract(address _tokenContract) external;
-
     // Compse a higher leve nft token
     function compose(uint[] memory tokenIds, ComposeMode mode, uint extralToken, PayMethod payMethod) external;
 }
