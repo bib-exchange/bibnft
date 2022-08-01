@@ -11,6 +11,7 @@ import {SafeCast} from "../libs/SafeCast.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {ISoccerStarNftMarket} from "../interfaces/ISoccerStarNftMarket.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
+import {IFeeCollector} from "../interfaces/IFeeCollector.sol";
 
 contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     using SafeMath for uint;
@@ -20,12 +21,14 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     IERC20 public bibContract;
     IERC20 public busdContract;
     ISoccerStarNft public tokenContract;
+    IFeeCollector feeCollector;
 
     event TokenContractChanged(address sender, address oldValue, address newValue);
     event BIBContractChanged(address sender, address oldValue, address newValue);
     event BUSDContractChanged(address sender, address oldValue, address newValue);
     event FeeRatioChanged(address sender, uint oldValue, uint newValue);
     event RoyaltyRatioChanged(address sender, uint oldValue, uint newValue);
+    event FeeCollectorChanged(address sender, address oldValue, address newValue);
 
     uint public nextOrderIndex;
     uint public nextOfferIndex;
@@ -77,6 +80,12 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         require(address(0) != _busdContract, "INVALID_ADDRESS");
         emit BUSDContractChanged(msg.sender, address(busdContract), _busdContract);
         busdContract = IERC20(_busdContract);
+    }
+
+    function setFeeCollector(address _feeCollector) public onlyOwner{
+        require(address(0) != _feeCollector, "INVALID_ADDRESS");
+        emit FeeCollectorChanged(msg.sender, address(feeCollector), _feeCollector);
+        feeCollector = IFeeCollector(_feeCollector);
     }
 
     function setFeeRatio(uint _feeRatio) public override onlyOwner{
@@ -179,6 +188,58 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         return (amount.mul(feeRatio).div(FEE_RATIO_DIV), amount.mul(royaltyRatio).div(FEE_RATIO_DIV));
     }
 
+    // Owner accept the price
+    function collectFeeWhenBuyerAsMaker(PayMethod payMethod, uint fees) internal {
+        if(payMethod == PayMethod.PAY_BNB) {
+            if(address(0) != address(feeCollector)) {
+                payable(address(feeCollector)).transfer(fees);
+                feeCollector.handleCollectBNB(fees);
+            } else {
+                payable(address(treasury)).transfer(fees);
+            }
+        } else if(payMethod == PayMethod.PAY_BUSD) {
+            if(address(0) != address(feeCollector)) {
+                busdContract.transfer(address(feeCollector), fees);
+                feeCollector.handleCollectBUSD(fees);
+            } else {
+                busdContract.transfer(treasury, fees);
+            }
+        } else {
+            if(address(0) != address(feeCollector)) {
+                bibContract.transfer(address(feeCollector), fees);
+                feeCollector.handleCollectBIB(fees);
+            } else {
+                bibContract.transfer(treasury, fees);
+            }
+        }
+    }
+
+    // Buyer accept the price
+    function collectFeeWhenSellerAsMaker(PayMethod payMethod, uint fees) internal {
+        if(payMethod == PayMethod.PAY_BNB) {
+            if(address(0) != address(feeCollector)) {
+                payable(address(feeCollector)).transfer(fees);
+                feeCollector.handleCollectBNB(fees);
+            } else {
+                payable(address(treasury)).transfer(fees);
+            }
+        } else if(payMethod == PayMethod.PAY_BUSD) {
+            if(address(0) != address(feeCollector)) {
+                busdContract.transferFrom(msg.sender, address(feeCollector), fees);
+                feeCollector.handleCollectBUSD(fees);
+            } else {
+                busdContract.transferFrom(msg.sender, treasury, fees);
+            }
+        } else {
+            if(address(0) != address(feeCollector)) {
+                bibContract.transferFrom(msg.sender, address(feeCollector), fees);
+                feeCollector.handleCollectBIB(fees);
+            } else {
+                bibContract.transferFrom(msg.sender, treasury, fees);
+            }
+        }
+    }
+
     // Buyer accept the price and makes a deal with the sepcific order
     function acceptOffer(uint orderId) public  override payable {
         Order storage order = orderTb[orderId];
@@ -186,21 +247,30 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         require(msg.sender != order.owner, "SHOULD_NOT_BE_ORDER_OWNER");
         require(order.expiration > block.timestamp, "ORDER_EXPIRED");
 
-        // aculate sales
+        // caculate fees
         (uint txFee, uint royaltyFee )= caculateFees(order.price);
-        uint amount = order.price.sub(txFee).sub(royaltyFee);
+        uint fees = txFee.add(royaltyFee);
+        uint amount = order.price.sub(txFee).sub(fees);
 
         // fee + royalty goese to BIB treasury
         if(order.payMethod == PayMethod.PAY_BNB){
-            require(msg.value == order.price, "INSUFFICIENT_FUNDS");
+            require(msg.value >= order.price, "INSUFFICIENT_FUNDS");
             payable(address(order.owner)).transfer(amount);
-            payable(address(treasury)).transfer(royaltyFee.add(txFee));
+
+            collectFeeWhenSellerAsMaker(PayMethod.PAY_BNB, fees);
+
+            // refunds
+            if(msg.value > order.price){
+                payable(address(msg.sender)).transfer(msg.value.sub(order.price));
+            }
         } else if(order.payMethod == PayMethod.PAY_BUSD){
             busdContract.transferFrom(msg.sender, order.owner, amount);
-            busdContract.transferFrom(msg.sender, treasury, royaltyFee.add(txFee));
+
+            collectFeeWhenSellerAsMaker(PayMethod.PAY_BUSD, fees);
         } else {
             bibContract.transferFrom(msg.sender, order.owner, amount);
-            bibContract.transferFrom(msg.sender, treasury, royaltyFee.add(txFee));
+
+            collectFeeWhenSellerAsMaker(PayMethod.PAY_BIB, fees);
         }
 
         // send token 
@@ -210,7 +280,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
                 msg.sender, 
                 order.owner,
                 msg.sender,
-                txFee.add(royaltyFee),
+                fees,
                 orderId,
                 0,
                 order.payMethod, 
@@ -231,24 +301,24 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         require(order.expiration > block.timestamp, "ORDER_EXPIRED");
 
         Offer storage offer = offerTb[offerId];
-        require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
         require(address(0) != offer.buyer, "INVALID_OFFER_ID");
+        require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
 
-        // aculate sales
-       (uint txFee, uint royaltyFee )= caculateFees(order.price);
-        uint amount = order.price.sub(txFee).sub(royaltyFee);
+        // caculate sales
+       (uint txFee, uint royaltyFee )= caculateFees(offer.bid);
+        uint fees = txFee.add(royaltyFee);
+        uint amount = offer.bid.sub(txFee).sub(royaltyFee);
 
         // fee + royalty goese to BIB treasury
         if(order.payMethod == PayMethod.PAY_BNB){
-            require(msg.value == order.price, "INSUFFICIENT_FUNDS");
             payable(address(order.owner)).transfer(amount);
-            payable(address(treasury)).transfer(royaltyFee.add(txFee));
+            collectFeeWhenBuyerAsMaker(PayMethod.PAY_BNB, fees);
         } else if(order.payMethod == PayMethod.PAY_BUSD){
-            busdContract.transferFrom(msg.sender, order.owner, amount);
-            busdContract.transferFrom(msg.sender, treasury, royaltyFee.add(txFee));
+            busdContract.transfer(order.owner, amount);
+            collectFeeWhenBuyerAsMaker(PayMethod.PAY_BUSD, fees);
         } else {
-            bibContract.transferFrom(msg.sender, order.owner, amount);
-            bibContract.transferFrom(msg.sender, treasury, royaltyFee.add(txFee));
+            bibContract.transfer(order.owner, amount);
+            collectFeeWhenBuyerAsMaker(PayMethod.PAY_BIB, fees);
         }
 
         // send token 
@@ -258,7 +328,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
                 msg.sender, 
                 offer.buyer,
                 order.owner,
-                txFee.add(royaltyFee),
+                fees,
                 orderId,
                 offerId,
                 order.payMethod, 
@@ -277,7 +347,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
         require(order.expiration > block.timestamp, "ORDER_EXPIRED");
-        require(price > 0, "PRICE_LE_ZERO");
+        require(price > 0, "PRICE_LTE_ZERO");
 
         emit UpdateOrderPrice(msg.sender, orderId, order.price, price);
         order.price = price;
@@ -286,7 +356,6 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     function _closeOrder(uint orderId) internal {
         Order storage order = orderTb[orderId];
         require(address(0) != order.issuer,"INVALID_ORDER");
-        require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
 
         uint indexToRm = orders.length;
         for(uint i = 0; i < orders.length; i++){
@@ -299,7 +368,6 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
             orders[i] = orders[i+1];
         }
         orders.pop();
-
 
         uint[] storage userOrders = userOrderTb[order.owner];
         indexToRm = userOrders.length;
@@ -314,9 +382,14 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         }
         userOrders.pop();
 
+        uint[] memory offerIds = orderOfferTb[orderId];
+        for(uint i = 0; i < offerIds.length; i++){
+            delete offerTb[offerIds[i]];
+        }
         delete orderOfferTb[orderId];
-        delete orderTb[orderId];
 
+        delete orderTb[orderId];
+        
         emit CloseOrder(msg.sender, orderId);
     }
 
@@ -370,6 +443,10 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
 
         if(order.payMethod == PayMethod.PAY_BNB){
             require(msg.value >= price, "INSUFFICIENT_FUNDS");
+            // refunds
+            if(msg.value > order.price){
+                payable(address(msg.sender)).transfer(msg.value.sub(price));
+            }
         } else if(order.payMethod == PayMethod.PAY_BUSD){
             busdContract.transferFrom(msg.sender, address(this), price);
         } else {
@@ -396,7 +473,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         require(order.expiration > block.timestamp, "ORDER_EXPIRED");
 
         Offer storage offer = offerTb[offerId];
-        require(msg.sender != offer.buyer, "INVALID_OFFER_ID");
+        require(msg.sender == offer.buyer, "INVALID_OFFER_ID");
         require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
         require(price > 0, "PRICE_NOT_BE_ZEROR");
         
@@ -414,6 +491,10 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
             delt = price.sub(offer.bid);
             if(order.payMethod == PayMethod.PAY_BNB){
                 require(msg.value >= delt, "INSUFFICIENT_FUNDS");
+                // refunds
+                if(msg.value > delt){
+                    payable(address(msg.sender)).transfer(msg.value.sub(delt));
+                }
             } else if(order.payMethod == PayMethod.PAY_BUSD){
                 busdContract.transferFrom(msg.sender, address(this), delt);
             } else {
