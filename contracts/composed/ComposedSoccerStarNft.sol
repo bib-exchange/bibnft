@@ -7,8 +7,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import {SafeMath} from "../libs/SafeMath.sol";
-import {SafeCast} from "../libs/SafeCast.sol";
+import {SafeMath} from "../lib/SafeMath.sol";
+import {SafeCast} from "../lib/SafeCast.sol";
 import {IComposedSoccerStarNft} from "../interfaces/IComposedSoccerStarNft.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
@@ -130,6 +130,8 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
         }
 
         uint newToken = tokenContract.protocolMint();
+        // starlevel added by one
+        soccerStar.starLevel += 1;
         tokenContract.protocolBind(newToken, soccerStar);
         IERC721(address(tokenContract)).transferFrom(address(this), msg.sender, newToken);
         emit Composed(msg.sender, tokenIds, extralToken,newToken, mode, payMethod, payAmount);

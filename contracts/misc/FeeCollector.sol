@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {SafeMath} from "../libs/SafeMath.sol";
-import {SafeCast} from "../libs/SafeCast.sol";
+import {SafeMath} from "../lib/SafeMath.sol";
+import {SafeCast} from "../lib/SafeCast.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from  "@openzeppelin/contracts/access/Ownable.sol";
