@@ -2,7 +2,7 @@
 
 pragma solidity >=0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "../deps/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./ERC721A.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -10,9 +10,9 @@ import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "../../interfaces/ISoccerStarNft.sol";
-import {SafeMath} from "../../libs/SafeMath.sol";
-import {IBIBOracle} from "../../interfaces/IBIBOracle.sol";
+import "../interfaces/ISoccerStarNft.sol";
+import {SafeMath} from "../lib/SafeMath.sol";
+import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 
 contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     using Strings for uint;

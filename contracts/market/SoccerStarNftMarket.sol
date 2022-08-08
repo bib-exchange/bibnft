@@ -4,16 +4,17 @@ pragma solidity >=0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable} from "../deps/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import {SafeMath} from "../libs/SafeMath.sol";
-import {SafeCast} from "../libs/SafeCast.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {SafeMath} from "../lib/SafeMath.sol";
+import {SafeCast} from "../lib/SafeCast.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {ISoccerStarNftMarket} from "../interfaces/ISoccerStarNftMarket.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 import {IFeeCollector} from "../interfaces/IFeeCollector.sol";
 
-contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
+contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, Initializable{
     using SafeMath for uint;
 
     address public treasury;
@@ -30,30 +31,33 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     event RoyaltyRatioChanged(address sender, uint oldValue, uint newValue);
     event FeeCollectorChanged(address sender, address oldValue, address newValue);
 
-    uint public nextOrderIndex;
-    uint public nextOfferIndex;
+    uint public nextOrderIndex = 1;
+    uint public nextOfferIndex = 1;
 
     uint public feeRatio = 25;
     uint public royaltyRatio = 75;
     uint public constant FEE_RATIO_DIV = 1000;
 
-    // orders in the market
-    uint[] public orders;
-    // fast index from order id to order
+    // mapping order_id to order
     mapping(uint=>Order) public orderTb;
+
+    // mapping issure->token->order_id
+    mapping(address=>mapping(uint=>uint)) public tokenOrderTb;
+
     // orders belong to the specfic owner
-    mapping(address=>uint[]) public userOrderTb;
-    //  offers of the order
-    mapping(uint=>uint[]) public orderOfferTb;
-    // fast index from offer id to offer
+    mapping(address=>uint[]) public userOrdersTb;
+
+    // maping offer_id to offer
     mapping(uint=>Offer) public offerTb;
 
-    constructor(
-    address _treasury,
-    address _tokenContract,
-    address _bibContract,
-    address _busdContract
-    ){
+    // mapping issurer=>token=>offer_ids
+    mapping(address=>mapping(uint=>uint[])) public tokenOffersTb;
+
+    function initialize(
+        address _treasury,
+        address _tokenContract,
+        address _bibContract,
+        address _busdContract) public initializer{
         treasury = _treasury;
         tokenContract = ISoccerStarNft(_tokenContract);
         bibContract = IERC20(_bibContract);
@@ -100,12 +104,30 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
        royaltyRatio = _royaltyRatio;
    }
 
+    function isOwner(address issuer, uint tokenId, address owner)
+     internal  view returns(bool){
+        return (owner == IERC721(address(issuer)).ownerOf(tokenId));
+    }
+
+    function isOriginOwner(address issuer, uint tokenId, address owner)
+     public override view returns(bool){
+         if(!isOwner(issuer, tokenId, owner)) {
+            Order memory order = getOrder(issuer, tokenId);
+            if(address(0) == order.owner){
+                return false;
+            } else {
+                return order.owner == owner;
+            }
+         }
+         return true;
+    }
+
     // user create a order
     function openOrder(address issuer, uint tokenId, PayMethod payMethod, uint price, uint expiration) public override payable{
         require(address(0) != issuer, "INVALID_ISSURE");
         require(expiration > block.timestamp, "EXPIRATION_TOO_SMALL");
         require(price > 0, "PRICE_NOT_BE_ZEROR");
-        require(msg.sender == IERC721(address(issuer)).ownerOf(tokenId), 
+        require(isOwner(issuer, tokenId, msg.sender), 
         "TOKEN_NOT_BELLONG_TO_SENDER");
    
         // delegate token to protocol
@@ -119,20 +141,31 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
             owner: msg.sender,
             payMethod: payMethod,
             price: price,
+            mt: block.timestamp,
             expiration: expiration
         });
 
-        orders.push(order.orderId);
-        userOrderTb[msg.sender].push(order.orderId);
         orderTb[order.orderId] = order;
+        tokenOrderTb[issuer][tokenId] = order.orderId;
+        userOrdersTb[msg.sender].push(order.orderId);
 
-        emit OpenOrder(issuer, msg.sender, order.orderId, tokenId, payMethod, price, expiration);
+        emit OpenOrder(msg.sender, 
+        issuer, order.orderId, tokenId, 
+        payMethod, price, order.mt, expiration);
     }
+
+    function hasOrder(address issuer, uint tokenId) public override view returns(bool){
+        return tokenOrderTb[issuer][tokenId] > 0;
+    }
+
+    function getOrder(address issuer, uint tokenId) public override view returns(Order memory){
+        return orderTb[tokenOrderTb[issuer][tokenId]];
+    }   
 
     // get orders by page
     function getUserOrdersByPage(address user, uint pageSt, uint pageSz) 
     public view override returns(Order[] memory){
-        uint[] storage _orders= userOrderTb[user];
+        uint[] storage _orders= userOrdersTb[user];
         Order[] memory ret;
 
         if(pageSt < _orders.length){
@@ -141,41 +174,6 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
             ret =  new Order[](end - pageSt);
             for(uint i = 0;pageSt < end; i++){
                 ret[i] = orderTb[_orders[pageSt]];
-                pageSt++;
-            } 
-        }
-
-        return ret;
-    }
-
-    function getOrdersByPage(uint pageSt, uint pageSz) 
-    public view override returns(Order[] memory){
-        Order[] memory ret;
-
-        if(pageSt < orders.length){
-            uint end = pageSt + pageSz;
-            end = end > orders.length ? orders.length : end;
-            ret =  new Order[](end - pageSt);
-            for(uint i = 0;pageSt < end; i++){
-                ret[i] = orderTb[orders[pageSt]];
-                pageSt++;
-            } 
-        }
-
-        return ret;
-    }
-
-    function getOrderOffersByPage(uint orderId, uint pageSt, uint pageSz) 
-    public view  override returns(Offer[] memory){
-        uint[] storage offers = orderOfferTb[orderId];
-        Offer[] memory ret;
-
-        if(pageSt < offers.length){
-            uint end = pageSt + pageSz;
-            end = end > offers.length ? offers.length : end;
-            ret =  new Offer[](end - pageSt);
-            for(uint i = 0;pageSt < end; i++){
-                ret[i] = offerTb[offers[pageSt]];
                 pageSt++;
             } 
         }
@@ -241,14 +239,14 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
     }
 
     // Buyer accept the price and makes a deal with the sepcific order
-    function acceptOffer(uint orderId) public  override payable {
+    function acceptOrder(uint orderId) public  override payable {
         Order storage order = orderTb[orderId];
         require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender != order.owner, "SHOULD_NOT_BE_ORDER_OWNER");
         require(order.expiration > block.timestamp, "ORDER_EXPIRED");
 
         // caculate fees
-        (uint txFee, uint royaltyFee )= caculateFees(order.price);
+        (uint txFee, uint royaltyFee ) = caculateFees(order.price);
         uint fees = txFee.add(royaltyFee);
         uint amount = order.price.sub(txFee).sub(fees);
 
@@ -276,33 +274,40 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         // send token 
         IERC721(address(order.issuer)).transferFrom(address(this), msg.sender, order.tokenId);
 
-        emit AcceptOffer(
-                msg.sender, 
-                order.owner,
-                msg.sender,
-                fees,
-                orderId,
-                0,
-                order.payMethod, 
-                order.price);
+        emit MakeDeal(
+            msg.sender,
+            order.owner,
+            msg.sender,
+            order.issuer,
+            order.tokenId,
+            order.payMethod,
+            order.price,
+            fees);
 
-        // refund commodity and currency
-        acceptAndRefundOffer(order, orderOfferTb[orderId], orderOfferTb[orderId].length);
+
+        (bool exist, Offer memory offer) = getOffer(order.issuer, order.tokenId, msg.sender);
+        if(exist){
+            cancelOffer(offer.offerId);
+        }
 
         // close order
         _closeOrder(orderId);
     }
 
     // Owner accept the offer and make a deal
-    function acceptOffer(uint orderId, uint offerId) public  override payable{
-        Order storage order = orderTb[orderId];
-        require(address(0) != order.issuer,"INVALID_ORDER");
-        require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
-        require(order.expiration > block.timestamp, "ORDER_EXPIRED");
-
+    function acceptOffer(uint offerId) public  override payable{
         Offer storage offer = offerTb[offerId];
-        require(address(0) != offer.buyer, "INVALID_OFFER_ID");
+        require(address(0) != offer.issuer, "INVALID_OFFER");
+        require(msg.sender != offer.buyer, "CANT_MAKE_DEAL_WITH_SELF");
         require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
+
+        // check if has order
+        Order memory order = getOrder(offer.issuer, offer.tokenId);
+        if(address(0) == order.owner){
+            require(isOwner(offer.issuer, offer.tokenId, msg.sender), "NOT_OWNER");
+        } else {
+            require(order.owner == msg.sender, "NOT_OWNER");
+        }
 
         // caculate sales
        (uint txFee, uint royaltyFee )= caculateFees(offer.bid);
@@ -310,35 +315,42 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         uint amount = offer.bid.sub(txFee).sub(royaltyFee);
 
         // fee + royalty goese to BIB treasury
-        if(order.payMethod == PayMethod.PAY_BNB){
-            payable(address(order.owner)).transfer(amount);
+        if(offer.payMethod == PayMethod.PAY_BNB){
+            payable(address(msg.sender)).transfer(amount);
             collectFeeWhenBuyerAsMaker(PayMethod.PAY_BNB, fees);
-        } else if(order.payMethod == PayMethod.PAY_BUSD){
-            busdContract.transfer(order.owner, amount);
+        } else if(offer.payMethod == PayMethod.PAY_BUSD){
+            busdContract.transfer(msg.sender, amount);
             collectFeeWhenBuyerAsMaker(PayMethod.PAY_BUSD, fees);
         } else {
-            bibContract.transfer(order.owner, amount);
+            bibContract.transfer(msg.sender, amount);
             collectFeeWhenBuyerAsMaker(PayMethod.PAY_BIB, fees);
         }
 
-        // send token 
-        IERC721(address(order.issuer)).transferFrom(address(this), offer.buyer, order.tokenId);
+        // If has no order then send from owner otherwise send from this
+         if(address(0) == order.owner){
+            IERC721(address(offer.issuer)).transferFrom(msg.sender, offer.buyer, offer.tokenId);
+        } else {
+            IERC721(address(offer.issuer)).transferFrom(address(this), offer.buyer, offer.tokenId);
+        }
 
-        emit AcceptOffer(
-                msg.sender, 
-                offer.buyer,
-                order.owner,
-                fees,
-                orderId,
-                offerId,
-                order.payMethod, 
-                offer.bid);
-        
-        // refund commodity and currency
-        acceptAndRefundOffer(order, orderOfferTb[orderId], offerId);
-        
-        // close order
-        _closeOrder(orderId);
+        emit MakeDeal(
+            msg.sender,
+            msg.sender,
+            offer.buyer,
+            offer.issuer,
+            offer.tokenId,
+            offer.payMethod,
+            offer.bid,
+            fees
+        );
+
+
+        // liquadity offer and order if exist
+        if(order.owner == msg.sender){
+            _closeOrder(order.orderId);
+        }
+
+        _cancleOffer(offerId);
     }
     
     // Owner updates order price
@@ -351,29 +363,19 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
 
         emit UpdateOrderPrice(msg.sender, orderId, order.price, price);
         order.price = price;
+        order.mt = block.timestamp;
     }
 
     function _closeOrder(uint orderId) internal {
         Order storage order = orderTb[orderId];
         require(address(0) != order.issuer,"INVALID_ORDER");
 
-        uint indexToRm = orders.length;
-        for(uint i = 0; i < orders.length; i++){
-           if(orderTb[orders[i]].orderId == orderId){
-                indexToRm = i;
-           }
-        }
-        require(indexToRm < orders.length, "ORDER_NOT_EXIST");
-        for(uint i = indexToRm; i < orders.length - 1; i++){
-            orders[i] = orders[i+1];
-        }
-        orders.pop();
-
-        uint[] storage userOrders = userOrderTb[order.owner];
-        indexToRm = userOrders.length;
+        uint[] storage userOrders = userOrdersTb[order.owner];
+        uint indexToRm = userOrders.length;
         for(uint i = 0; i < userOrders.length; i++){
            if(orderTb[userOrders[i]].orderId == orderId){
                 indexToRm = i;
+                break;
            }
         }
         require(indexToRm < userOrders.length, "ORDER_NOT_EXIST");
@@ -382,33 +384,11 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         }
         userOrders.pop();
 
-        uint[] memory offerIds = orderOfferTb[orderId];
-        for(uint i = 0; i < offerIds.length; i++){
-            delete offerTb[offerIds[i]];
-        }
-        delete orderOfferTb[orderId];
-
         delete orderTb[orderId];
+
+        delete tokenOrderTb[order.issuer][order.tokenId];
         
         emit CloseOrder(msg.sender, orderId);
-    }
-
-    function acceptAndRefundOffer(Order storage order, uint[] storage offers, uint acceptOfferId) internal {
-        for(uint i = 0; i < offers.length; i++){
-            Offer storage offer = offerTb[offers[i]];
-
-            if(acceptOfferId == offer.offerId) {
-                continue;
-            }
-
-            if(order.payMethod == PayMethod.PAY_BNB){
-                payable(address(offer.buyer)).transfer(offer.bid);
-            } else if(order.payMethod == PayMethod.PAY_BUSD){
-                busdContract.transfer(offer.buyer, offer.bid);
-            } else {
-                bibContract.transfer(offer.buyer, offer.bid);
-            }
-        }
     }
 
     // Owner close the specific order if not dealed
@@ -417,117 +397,119 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
 
-        // refund commodity and currency
-        acceptAndRefundOffer(order, orderOfferTb[orderId], orderOfferTb[orderId].length);
-
-        IERC721(address(tokenContract)).transferFrom(address(this), order.owner, order.tokenId);
+        IERC721(address(order.issuer)).transferFrom(address(this), order.owner, order.tokenId);
         
         _closeOrder(orderId);
     }
 
+    function hasOffer(address issuer, uint tokenId, address user) 
+    public view returns(bool){
+        uint[] storage offserIds = tokenOffersTb[issuer][tokenId];
+        for(uint i = 0; i < offserIds.length; i++){
+            if(offerTb[offserIds[i]].buyer == user){
+                return true;
+            }
+        }
+        return false;
+    } 
+
+    function getOffer(address issuer, uint tokenId, address user) 
+    public view returns(bool, Offer memory){
+        Offer memory ret;
+        uint[] storage offserIds = tokenOffersTb[issuer][tokenId];
+        for(uint i = 0; i < offserIds.length; i++){
+            if(offerTb[offserIds[i]].buyer == user){
+                return (true, offerTb[offserIds[i]]);
+            }
+        }
+        return (false, ret);
+    } 
+
     // Buyer make a offer to the specific order
-    function makeOffer(uint orderId, uint price, uint expiration) public override payable{
-        Order storage order = orderTb[orderId];
-        require(address(0) != order.issuer,"INVALID_ORDER");
-        require(msg.sender != order.owner, "CANT_MAKE_OFFER_WITH_SELF");
+    function makeOffer(address issuer, uint tokenId, PayMethod payMethod, uint price, uint expiration)
+     public override payable{
+        require(address(0) != issuer,"INVALID_ADDRESS");
+        require(!isOwner(issuer, tokenId, msg.sender), "CANT_MAKE_OFFER_WITH_SELF");
+        require(!hasOffer(issuer, tokenId, msg.sender), "HAS_MADE_OFFER");
         require(expiration > block.timestamp, "EXPIRATION_TOOL_SMALL");
         require(price > 0, "PRICE_NOT_BE_ZEROR");
 
-        // check if has made offer before
-        uint[] storage offers = orderOfferTb[orderId];
-        for(uint i = 0; i < offers.length; i++){
-            if(offerTb[offers[i]].buyer == msg.sender){
-                revert("HAS_MADE_OFFER");
-            }
-        }
-
-        if(order.payMethod == PayMethod.PAY_BNB){
+        if(payMethod == PayMethod.PAY_BNB){
             require(msg.value >= price, "INSUFFICIENT_FUNDS");
             // refunds
-            if(msg.value > order.price){
+            if(msg.value > price){
                 payable(address(msg.sender)).transfer(msg.value.sub(price));
             }
-        } else if(order.payMethod == PayMethod.PAY_BUSD){
+        } else if(payMethod == PayMethod.PAY_BUSD){
             busdContract.transferFrom(msg.sender, address(this), price);
         } else {
             bibContract.transferFrom(msg.sender, address(this), price);
         }
 
         Offer memory offer = Offer({
-            offerId: nextOfferIndex,
+            offerId: nextOfferIndex++,
+            issuer: issuer,
+            tokenId: tokenId,
             buyer: msg.sender,
+            payMethod: payMethod,
             bid: price,
+            mt: block.timestamp,
             expiration: expiration
         });
+        offerTb[offer.offerId] = offer;
+        tokenOffersTb[issuer][tokenId].push(offer.offerId);
 
-        orderOfferTb[orderId].push(offer.offerId);
-        offerTb[nextOfferIndex] = offer;
-
-        emit MakeOffer(msg.sender,  order.owner, orderId, nextOfferIndex++, price, expiration);
+        emit MakeOffer(msg.sender, offer.issuer, offer.tokenId, 
+        offer.offerId, offer.payMethod, offer.bid, offer.mt, offer.expiration);
     }
 
     // Buyer udpate offer bid price
-    function updateOffer(uint orderId, uint offerId, uint price) public override payable{
-        Order storage order = orderTb[orderId];
-        require(address(0) != order.issuer,"INVALID_ORDER");
-        require(order.expiration > block.timestamp, "ORDER_EXPIRED");
-
+    function updateOfferPrice(uint offerId, uint price) public override payable{
         Offer storage offer = offerTb[offerId];
-        require(msg.sender == offer.buyer, "INVALID_OFFER_ID");
+        require(msg.sender == offer.buyer, "SHOULD_BE_OFFER_MAKER");
         require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
         require(price > 0, "PRICE_NOT_BE_ZEROR");
         
         uint delt  = 0;
         if(offer.bid > price){
             delt = offer.bid.sub(price);
-            if(order.payMethod == PayMethod.PAY_BNB){
-                payable(address(offer.buyer)).transfer(delt);
-            } else if(order.payMethod == PayMethod.PAY_BUSD){
-                busdContract.transfer(offer.buyer, delt);
+            if(offer.payMethod == PayMethod.PAY_BNB){
+                payable(address(msg.sender)).transfer(delt);
+            } else if(offer.payMethod == PayMethod.PAY_BUSD){
+                busdContract.transfer(msg.sender, delt);
             } else {
-                bibContract.transfer(offer.buyer, delt);
+                bibContract.transfer(msg.sender, delt);
             }
         } else {
             delt = price.sub(offer.bid);
-            if(order.payMethod == PayMethod.PAY_BNB){
+            if(offer.payMethod == PayMethod.PAY_BNB){
                 require(msg.value >= delt, "INSUFFICIENT_FUNDS");
                 // refunds
                 if(msg.value > delt){
                     payable(address(msg.sender)).transfer(msg.value.sub(delt));
                 }
-            } else if(order.payMethod == PayMethod.PAY_BUSD){
+            } else if(offer.payMethod == PayMethod.PAY_BUSD){
                 busdContract.transferFrom(msg.sender, address(this), delt);
             } else {
                 bibContract.transferFrom(msg.sender, address(this), delt);
             }
         }
 
-        emit UpdateOfferPrice(msg.sender, orderId, offerId, offer.bid, price);
+        emit UpdateOfferPrice(msg.sender, offer.offerId, offer.bid, price);
 
         offer.bid = price;
+        offer.mt = block.timestamp;
     }
 
-    // Buyer cancle the specific order
-    function cancelOffer(uint orderId, uint offerId) public override{
-        Order storage order = orderTb[orderId];
-        require(address(0) != order.issuer,"INVALID_ORDER");
-
+    function _cancleOffer(uint offerId) internal {
         Offer storage offer = offerTb[offerId];
-        require(msg.sender == offer.buyer, "SHOULD_BE_BUYER");
 
-        if(order.payMethod == PayMethod.PAY_BNB){
-            payable(address(offer.buyer)).transfer(offer.bid);
-        } else if(order.payMethod == PayMethod.PAY_BUSD){
-            busdContract.transfer(offer.buyer, offer.bid);
-        } else {
-            bibContract.transfer(offer.buyer, offer.bid);
-        }
-
-        uint[] storage offers = orderOfferTb[orderId];
+        uint[] storage offers = tokenOffersTb[offer.issuer][offer.tokenId];
         uint indexToRm = offers.length;
         for(uint i = 0; i < offers.length; i++){
            if(offerTb[offers[i]].offerId == offerId){
                 indexToRm = i;
+                break;
            }
         }
         require(indexToRm < offers.length, "OFFER_NOT_EXIST");
@@ -537,6 +519,22 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{
         offers.pop();
         delete offerTb[offerId];
 
-        emit CancelOffer(msg.sender, orderId, offerId);
+        emit CancelOffer(msg.sender, offerId);
+    }
+
+    // Buyer cancle the specific order
+    function cancelOffer(uint offerId) public override{
+        Offer storage offer = offerTb[offerId];
+        require(msg.sender == offer.buyer, "SHOULD_BE_OFFER_MAKER");
+
+        if(offer.payMethod == PayMethod.PAY_BNB){
+            payable(address(offer.buyer)).transfer(offer.bid);
+        } else if(offer.payMethod == PayMethod.PAY_BUSD){
+            busdContract.transfer(offer.buyer, offer.bid);
+        } else {
+            bibContract.transfer(offer.buyer, offer.bid);
+        }
+
+        _cancleOffer(offerId);
     }
 }

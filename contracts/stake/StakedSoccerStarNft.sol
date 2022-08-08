@@ -6,8 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import {SafeMath} from "../libs/SafeMath.sol";
-import {SafeCast} from "../libs/SafeCast.sol";
+import {SafeMath} from "../lib/SafeMath.sol";
+import {SafeCast} from "../lib/SafeCast.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {IStakedSoccerStarNft} from "../interfaces/IStakedSoccerStarNft.sol";
 
