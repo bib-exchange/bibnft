@@ -8,16 +8,18 @@ import "./ERC721A.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "../interfaces/ISoccerStarNft.sol";
+import {VersionedInitializable} from "../misc/VersionedInitializable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 
-contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
+contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializable {
     using Strings for uint;
     using SafeMath for uint;
 
+    uint constant VERSION = 1;
+    
     IERC20 public bibContract;
     IERC20 public busdContract;
     IBIBOracle public priceOracle;
@@ -166,6 +168,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
     // only allow protocol related contract to bind star property
     function protocolBind(uint tokenId, SoccerStar memory soccerStar) public override onlyComposer{
         require(msg.sender == ownerOf(tokenId), "TOKEN_NOT_BELLONG_TO_CALLER");
+        require(cardProperty[tokenId].starLevel == 0, "TOKEN_REVEALED");
         cardProperty[tokenId] = soccerStar;
     }
 
@@ -441,5 +444,9 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, Initializable {
         bytes32 _root
     ) internal pure returns (bool) {
         return MerkleProof.verify(_proof, _root, _leaf(_account));
+    }
+
+    function getRevision() internal pure override returns (uint256){
+        return VERSION;
     }
 }

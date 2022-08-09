@@ -8,7 +8,7 @@ import {IBIBOracle} from  "../interfaces/IBIBOracle.sol";
  * @notice Interface for the BIB oracle.
  **/
 
-contract BIBOracle is IBIBOracle {
+contract MockBIBOracle is IBIBOracle {
   function BASE_CURRENCY() public pure  override returns (address){
       return address(0);
   }
