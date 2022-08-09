@@ -4,18 +4,20 @@ pragma solidity >=0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import {Ownable} from "../deps/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Ownable} from "../deps/Ownable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeCast} from "../lib/SafeCast.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {ISoccerStarNftMarket} from "../interfaces/ISoccerStarNftMarket.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 import {IFeeCollector} from "../interfaces/IFeeCollector.sol";
+import {VersionedInitializable} from "../misc/VersionedInitializable.sol";
 
-contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, Initializable{
+contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitializable{
     using SafeMath for uint;
+
+    uint constant VERSION = 1;
 
     address public treasury;
 
@@ -537,4 +539,9 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, Initializable{
 
         _cancleOffer(offerId);
     }
+
+  function getRevision() internal pure override returns (uint256){
+    return VERSION;
+  }
+
 }

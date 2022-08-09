@@ -1,0 +1,8 @@
+name: Tests
+description: Run tests
+runs:
+  using: "composite"
+  steps:
+    - name: test
+      shell: sh
+      run: docker-compose -f docker-compose.test.yml run contracts-env npm run test

@@ -13,7 +13,7 @@ pragma solidity 0.8.11;
  * a parent initializer twice, or ensure that all initializers are idempotent,
  * because this is not dealt with automatically as with constructors.
  *
- * @author SiO2, inspired by the OpenZeppelin Initializable contract
+ * @author BIB, inspired by the OpenZeppelin Initializable contract
  */
 abstract contract VersionedInitializable {
     /**
@@ -39,6 +39,6 @@ abstract contract VersionedInitializable {
     function getRevision() internal pure virtual returns(uint256);
 
 
-    // Reserved storage space to allow for sio2out changes in the future.
+    // Reserved storage space to allow for BIBout changes in the future.
     uint256[50] private ______gap;
 }

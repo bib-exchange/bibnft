@@ -46,14 +46,14 @@ contract StakedSoccerStarNftV2 is
   /// @notice Address to pull from the rewards, needs to have approved this contract
   address public REWARDS_VAULT;
 
-  uint public coolDownDuration = 7 days;
+  uint public coolDownDuration = 60;
   uint public totalStaked;
   uint public totalPower;
 
   // address->token table
-  mapping(address=>uint[]) userStakedTokenTb;
+  mapping(address=>uint[]) public userStakedTokenTb;
   // token->staken info table
-  mapping(uint=>TokenStakedInfo) tokenStakedInfoTb;
+  mapping(uint=>TokenStakedInfo) public tokenStakedInfoTb;
 
   function initialize(
     ISoccerStarNft stakedToken,
@@ -96,12 +96,13 @@ contract StakedSoccerStarNftV2 is
   // Check if the specified token is unfreezing
   function isUnfreezing(uint tokenId) public view override returns(bool){
     uint cooldown = tokenStakedInfoTb[tokenId].cooldown;
-    return cooldown > 0 && cooldown.add(coolDownDuration) <= block.timestamp;
+    return cooldown > 0 && cooldown.add(coolDownDuration) >= block.timestamp;
   }
 
   // Check if the specified token is withdrawable
   function isWithdrawAble(uint tokenId) public view override returns(bool){
-    return tokenStakedInfoTb[tokenId].cooldown.add(coolDownDuration)  > block.timestamp;
+    uint cooldown = tokenStakedInfoTb[tokenId].cooldown;
+    return cooldown > 0 && cooldown.add(coolDownDuration)  < block.timestamp;
   }
 
   function isOwner(uint tokenId, address owner)
@@ -169,9 +170,15 @@ contract StakedSoccerStarNftV2 is
     require(getTokenOwner(tokenId) == msg.sender, "NOT_TOKEN_OWNER");
     require(isWithdrawAble(tokenId), "NOT_WITHDRAWABLE");
 
-    IERC20(REWARDS_VAULT).transfer(
+    // settle rewards
+    IERC20(REWARD_TOKEN).transferFrom(
+      REWARDS_VAULT,
       tokenStakedInfoTb[tokenId].owner, 
       tokenStakedInfoTb[tokenId].unclaimed);
+    
+    // refund token
+    IERC721(address(STAKED_TOKEN)).safeTransferFrom(
+      address(this), tokenStakedInfoTb[tokenId].owner, tokenId);
 
     delete tokenStakedInfoTb[tokenId];
 

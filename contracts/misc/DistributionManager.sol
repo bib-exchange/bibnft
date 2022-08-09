@@ -5,7 +5,7 @@ pragma experimental ABIEncoderV2;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {DistributionTypes} from "../lib/DistributionTypes.sol";
-
+import "hardhat/console.sol";
 /**
  * @title DistributionManager
  * @notice Accounting contract to manage multiple staking distributions
@@ -14,7 +14,6 @@ contract DistributionManager is Ownable {
   using SafeMath for uint256;
 
   struct AssetData {
-    address underlyingAsset;
     uint128 emissionPerSecond;
     uint128 lastUpdateTimestamp;
     uint256 index;
@@ -40,7 +39,7 @@ contract DistributionManager is Ownable {
    * @param assetsConfigInput The list of configurations to apply
    **/
   function configureAssets(DistributionTypes.AssetConfigInput[] calldata assetsConfigInput)
-    external
+    public
     onlyOwner
   {
     for (uint256 i = 0; i < assetsConfigInput.length; i++) {
