@@ -249,6 +249,10 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         });
     }
 
+    function getSellTime(uint round) public view returns (uint){
+        return timeInfoTb[round].startTime;
+    }
+
     function setMaxMintSupply(uint _maxMintSupply) public onlyOwner{
         maxMintSupply = _maxMintSupply;
     }
