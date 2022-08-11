@@ -5,16 +5,20 @@ pragma solidity >=0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "../deps/Ownable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeCast} from "../lib/SafeCast.sol";
 import {IComposedSoccerStarNft} from "../interfaces/IComposedSoccerStarNft.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
+import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 
-contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
+contract ComposedSoccerStarNft is IComposedSoccerStarNft, 
+Ownable, VersionedInitializable {
     using SafeMath for uint;
+
+    uint constant public VERSION = 0x01;
 
     address constant public BLOCK_HOLE = address(0x0000000000000000000000000000000000000001);
    
@@ -41,18 +45,25 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
     event PriceOracleChanged(address sender, address oldValue, address newValue);
     event FeeRateChanged(address sender, uint[12] oldValue, uint[12] newValue);
 
-    constructor(
+    function initialize(
     address _tokenContract,
     address _bibContract,
     address _busdContract,
     address _treasury,
     address _priceOracle
-    ){
+    ) public initializer {
         tokenContract = ISoccerStarNft(_tokenContract);
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
         treasury = _treasury;
         priceOracle = IBIBOracle(_priceOracle);
+
+        // set owner
+        _owner = msg.sender;
+    }
+
+    function getRevision() internal pure override returns (uint256){
+        return VERSION;
     }
 
     function setTokenContract(address _tokenContract) public onlyOwner{

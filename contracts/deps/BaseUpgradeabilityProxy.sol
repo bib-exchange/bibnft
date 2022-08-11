@@ -2,7 +2,7 @@
 pragma solidity >=0.8.0;
 
 import './Proxy.sol';
-import './Address.sol';
+import '../lib/Address.sol';
 
 /**
  * @title BaseUpgradeabilityProxy

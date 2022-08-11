@@ -75,7 +75,7 @@ subtask(
 
     // Retreive corresponding list of ownable contracts
     let listOfOwnableContracts: {deployedName: string, artifactName: string}[];
-    if (DRE.network.name == 'astar') {
+    if (DRE.network.name == 'bsc') {
       listOfOwnableContracts = listOfOwnableContractsForProduction;
     } else {
       listOfOwnableContracts = listOfOwnableContractsForTestnet;
@@ -116,7 +116,7 @@ subtask(
       console.log('❌ Deployment canceled');
       return;
     }
-    if (DRE.network.name == 'astar') {
+    if (DRE.network.name == 'bsc') {
       const astarConfirmation = promptUser(
         "❗❗❗ Are you sure you want to run this PRODUCTION CALL? Type 'I yes' to continue: "
       );
@@ -187,7 +187,7 @@ subtask(
 
     // Retreive corresponding list of ownable contracts
     let listOfProxyContracts: {deployedName: string, artifactName: string}[];
-    if (DRE.network.name == 'astar') {
+    if (DRE.network.name == 'bsc') {
       listOfProxyContracts = listOfProxyContractsForProduction;
     } else {
       listOfProxyContracts = listOfProxyContractsForTestnet;
@@ -223,7 +223,7 @@ subtask(
       console.log('❌ Deployment canceled');
       return;
     }
-    if (DRE.network.name == 'astar') {
+    if (DRE.network.name == 'bsc') {
       const astarConfirmation = promptUser(
         "❗❗❗ Are you sure you want to run this PRODUCTION CALL? Type 'I UNDERSTAND' to continue: "
       );

@@ -5,9 +5,19 @@ export enum eContractid {
   MockBib="MockBIB",
   MockBusd = "MockBUSD",
   MockBibOracle = "MockBIBOracle",
+  BibOracle = "BibOracle",
   IERC20Detailed = 'IERC20Detailed',
   SoccerStarNft = "SoccerStarNft",
+  SoccerStarNftImpl = "SoccerStarNftImpl",
+  ComposedSoccerStarNft = "ComposedSoccerStarNft",
+  ComposedSoccerStarNftImpl = "ComposedSoccerStarNftImpl",
+  SoccerStarNftMarket = "SoccerStarNftMarket",
+  SoccerStarNftMarketImpl = "SoccerStarNftMarketImpl",
   StakedSoccerStarNftV2 = "StakedSoccerStarNftV2",
+  StakedSoccerStarNftV2Impl = "StakedSoccerStarNftV2Impl",
+  StakedDividendTracker = "StakedDividendTracker",
+  FeeCollector = "FeeCollector",
+  FeeCollectorImpl = 'FeeCollectorImpl',
   InitializableAdminUpgradeabilityProxy = "InitializableAdminUpgradeabilityProxy"
 }
 
