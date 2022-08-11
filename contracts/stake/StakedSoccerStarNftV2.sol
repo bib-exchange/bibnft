@@ -5,20 +5,18 @@ pragma experimental ABIEncoderV2;
 
 //import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeCast} from "../lib/SafeCast.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {IStakedSoccerStarNftV2} from "../interfaces/IStakedSoccerStarNftV2.sol";
 
-import {VersionedInitializable} from "../misc/VersionedInitializable.sol";
+import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 import {DistributionTypes} from "../lib/DistributionTypes.sol";
 import {DistributionManager} from "../misc/DistributionManager.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeERC20} from "../lib/SafeERC20.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
-
+import {IBalanceHook} from "../interfaces/IBalanceHook.sol";
 
 /**
  * @title StakedToken
@@ -34,14 +32,16 @@ contract StakedSoccerStarNftV2 is
   using SafeERC20 for IERC20;
   using SafeCast for uint;
 
-  uint256 public constant REVISION = 1;
+  uint256 public constant REVISION = 0x1;
 
   ISoccerStarNft public STAKED_TOKEN;
   IERC20 public REWARD_TOKEN;
+  IBalanceHook balanceHook;
 
   event StakedTokenChanged(address sender, address oldValue, address newValue);
   event RewardTokenChanged(address sender, address oldValue, address newValue);
   event RewardVaultChanged(address sender, address oldValue, address newValue);
+  event BalanceHookChanged(address sender, address oldValue, address newValue);
 
   /// @notice Address to pull from the rewards, needs to have approved this contract
   address public REWARDS_VAULT;
@@ -54,6 +54,8 @@ contract StakedSoccerStarNftV2 is
   mapping(address=>uint[]) public userStakedTokenTb;
   // token->staken info table
   mapping(uint=>TokenStakedInfo) public tokenStakedInfoTb;
+  // user->power
+  mapping(address=>uint) public userTotalPower;
 
   function initialize(
     ISoccerStarNft stakedToken,
@@ -64,6 +66,10 @@ contract StakedSoccerStarNftV2 is
     STAKED_TOKEN = stakedToken;
     REWARD_TOKEN = rewardToken;
     REWARDS_VAULT = rewardsVault;
+
+
+    // set owner
+    _owner = msg.sender;
 
     setDistributionDuration(distributionDuration);
   }
@@ -84,6 +90,12 @@ contract StakedSoccerStarNftV2 is
     require(address(0) != _newValue, "INVALID_ADDRESS");
     emit RewardVaultChanged(msg.sender, address(REWARDS_VAULT), _newValue);
     REWARDS_VAULT = _newValue;
+  }
+
+  function setBalanceHook(address _newValue) public onlyOwner{
+    require(address(0) != _newValue, "INVALID_ADDRESS");
+    emit BalanceHookChanged(msg.sender, address(balanceHook), _newValue);
+    balanceHook = IBalanceHook(_newValue);
   }
 
   // check is the specified token is staked
@@ -126,7 +138,9 @@ contract StakedSoccerStarNftV2 is
     // udpate global and token index
     _updateTokenAssetInternal(tokenId, address(this), 0, totalPower);
 
-    totalPower += getTokenPower(tokenId);
+    uint power = getTokenPower(tokenId);
+    totalPower += power;
+    userTotalPower[msg.sender] += power;
 
     tokenStakedInfoTb[tokenId] = TokenStakedInfo({
       owner: msg.sender,
@@ -138,6 +152,11 @@ contract StakedSoccerStarNftV2 is
     userStakedTokenTb[msg.sender].push(tokenId);
 
     emit Stake(msg.sender, tokenId);
+
+    // record extra dividend
+    if(address(0) != address(balanceHook)){
+      balanceHook.hookBalanceChange(msg.sender, userTotalPower[msg.sender]);
+    }
   }
 
   function getTokenOwner(uint tokenId) public view returns(address){
@@ -158,11 +177,17 @@ contract StakedSoccerStarNftV2 is
 
     // deducate the power
     totalPower -= power;
+    userTotalPower[msg.sender] -= power;
 
     tokenStakedInfoTb[tokenId].cooldown = block.timestamp;
     tokenStakedInfoTb[tokenId].unclaimed = unclaimedRewards;
     
     emit Redeem(msg.sender, tokenId);
+
+    // record extra dividend
+    if(address(0) != address(balanceHook)){
+      balanceHook.hookBalanceChange(msg.sender, userTotalPower[msg.sender]);
+    }
   }
 
   // user withdraw the spcified token

@@ -2,15 +2,15 @@
 
 pragma solidity >=0.8.0;
 
-import "../deps/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "./ERC721A.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "../interfaces/ISoccerStarNft.sol";
-import {VersionedInitializable} from "../misc/VersionedInitializable.sol";
+import "./ERC721A.sol";
+import "../deps/Ownable.sol";
+import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 
@@ -87,18 +87,28 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
 
     // track user quota at pre-round
     mapping(address=>QuotaTracker) public userQutaPreRoundTb;
+    
+    constructor()ERC721A("SoccerStarNft", "SCSTAR"){}
 
-    constructor(   
+    function initialize(   
     uint _maxMintSupply, 
     address _bibContract,
     address _busdContract,
     address _treasury,
-    address _priceOracle)ERC721A("SoccerStarNft", "SCSTAR"){
+    address _priceOracle) public initializer{
         maxMintSupply = _maxMintSupply;
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
         treasury = _treasury;
         priceOracle = IBIBOracle(_priceOracle);
+
+        // set owner
+        _owner = msg.sender;
+
+        // set token info
+        _name = "SoccerStarNft";
+        _symbol = "SCSTAR";
+        _currentIndex = _startTokenId();
     }
 
     modifier onlyWhenNotPaused {

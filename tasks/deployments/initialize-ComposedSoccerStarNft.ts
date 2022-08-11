@@ -4,12 +4,12 @@ import { eContractid} from '../../helpers/types';
 import { eEthereumNetwork } from '../../helpers/types-common';
 import {
   getSoccerStarNft,
-  getSoccerStarNftImpl,
+  getComposedSoccerStarNft,
+  getComposedSoccerStarNftImpl,
   getContract
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
-  MAX_NFT_QUOTA,
   getBIBTokenPerNetwork,
   getBUSDTokenPerNetwork,
   getMockOraclePerNetwork,
@@ -17,32 +17,32 @@ import { ZERO_ADDRESS,
   getBIBAdminPerNetwork
  } from '../../helpers/constants';
 
-const { SoccerStarNft } = eContractid;
+const { ComposedSoccerStarNft, SoccerStarNft } = eContractid;
 
-task(`initialize-${SoccerStarNft}`, `Initialize the ${SoccerStarNft} proxy contract`)
+task(`initialize-${ComposedSoccerStarNft}`, `Initialize the ${ComposedSoccerStarNft} proxy contract`)
   .setAction(async ({}, localBRE) => {
     await localBRE.run('set-dre');
-
 
     if (!localBRE.network.config.chainId) {
       throw new Error('INVALID_CHAIN_ID');
     }
 
-    console.log(`\Initialzie ${SoccerStarNft} proxy`);
+    console.log(`\tInitialzie ${ComposedSoccerStarNft} proxy`);
     
     const network = localBRE.network.name as eEthereumNetwork;
-
+    
     const admin = await getBIBAdminPerNetwork(network);
     const soccerStarNft = await getSoccerStarNft();
-    const soccerStarNftImpl = await getSoccerStarNftImpl();
+    const composedSoccerStarNft = await getComposedSoccerStarNft();
+    const composedSoccerStarNftImpl = await getComposedSoccerStarNftImpl();
 
-    const soccerStarNftProxy = await getContract<InitializableAdminUpgradeabilityProxy>(
+    const composedSoccerStarNftProxy = await getContract<InitializableAdminUpgradeabilityProxy>(
       eContractid.InitializableAdminUpgradeabilityProxy,
-      soccerStarNft.address
+      composedSoccerStarNft.address
     );
 
-    const encodedInitialize = soccerStarNftImpl.interface.encodeFunctionData('initialize', [
-      MAX_NFT_QUOTA,
+    const encodedInitialize = composedSoccerStarNftImpl.interface.encodeFunctionData('initialize', [
+      soccerStarNft.address,
       await getBIBTokenPerNetwork(network),
       await getBUSDTokenPerNetwork(network),
       await getTreasuryPerNetwork(network),
@@ -50,12 +50,16 @@ task(`initialize-${SoccerStarNft}`, `Initialize the ${SoccerStarNft} proxy contr
     ]);
 
     await waitForTx(
-      await soccerStarNftProxy['initialize(address,address,bytes)'](
-        soccerStarNftImpl.address,
+      await composedSoccerStarNftProxy['initialize(address,address,bytes)'](
+        composedSoccerStarNftImpl.address,
         admin,
         encodedInitialize
       )
     );
 
-    console.log(`\tFinished ${SoccerStarNft} proxy initialize`);
+    console.log(`\tSet ${SoccerStarNft} composer ${ComposedSoccerStarNft} proxy`);
+    // set composer
+    await waitForTx(await soccerStarNft.setComposer(composedSoccerStarNft.address));
+
+    console.log(`\tFinished ${ComposedSoccerStarNft} proxy initialize`);
   });

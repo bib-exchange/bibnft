@@ -69,10 +69,10 @@ contract ERC721A is Context, ERC165, IERC721, IERC721Metadata {
     uint256 internal _burnCounter;
 
     // Token name
-    string private _name;
+    string internal _name;
 
     // Token symbol
-    string private _symbol;
+    string internal _symbol;
 
     // Mapping from token ID to ownership details
     // An empty struct value does not necessarily mean the token is unowned. See _ownershipOf implementation for details.
@@ -91,7 +91,6 @@ contract ERC721A is Context, ERC165, IERC721, IERC721Metadata {
         _name = name_;
         _symbol = symbol_;
         _currentIndex = _startTokenId();
-
     }
 
     /**

@@ -2,10 +2,10 @@
 pragma solidity >=0.8.0;
 pragma experimental ABIEncoderV2;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {DistributionTypes} from "../lib/DistributionTypes.sol";
-import "hardhat/console.sol";
+import "../deps/Ownable.sol";
+
 /**
  * @title DistributionManager
  * @notice Accounting contract to manage multiple staking distributions

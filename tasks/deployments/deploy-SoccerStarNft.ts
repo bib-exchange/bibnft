@@ -3,10 +3,10 @@ import { eContractid } from '../../helpers/types';
 import {
   deploySoccerStarNft,
   registerContractInJsonDb,
+  deployInitializableAdminUpgradeabilityProxy
 } from '../../helpers/contracts-helpers';
-import { InitializableAdminUpgradeabilityProxy } from '../../types/InitializableAdminUpgradeabilityProxy';
 
-const { SoccerStarNft } = eContractid;
+const { SoccerStarNft, SoccerStarNftImpl } = eContractid;
 
 task(`deploy-${SoccerStarNft}`, `Deploy the ${SoccerStarNft} contract`)
   .addFlag('verify', 'Proceed with the Etherscan verification')
@@ -16,4 +16,16 @@ task(`deploy-${SoccerStarNft}`, `Deploy the ${SoccerStarNft} contract`)
     if (!localBRE.network.config.chainId) {
       throw new Error('INVALID_CHAIN_ID');
     }
+
+    console.log(`\n- ${SoccerStarNft} deployment`);
+
+    console.log(`\tDeploying ${SoccerStarNft} implementation ...`);
+    const soccerStarNftImpl = await deploySoccerStarNft(verify);
+    await registerContractInJsonDb(SoccerStarNftImpl, soccerStarNftImpl);
+
+    console.log(`\tDeploying ${SoccerStarNft} Transparent Proxy ...`);
+    const soccerStarNftProxy = await deployInitializableAdminUpgradeabilityProxy(verify);
+    await registerContractInJsonDb(SoccerStarNft, soccerStarNftProxy);
+
+    console.log(`\tFinished ${SoccerStarNft} proxy and implementation deployment`);
   });

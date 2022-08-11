@@ -11,7 +11,7 @@ const fatalErrors = [
   `Daily limit of 100 source code submissions reached`,
 ];
 
-export const SUPPORTED_ETHERSCAN_NETWORKS = ['main', 'ropsten', 'kovan', 'shibuya', 'shiden'];
+export const SUPPORTED_ETHERSCAN_NETWORKS = ['main', 'ropsten', 'kovan', 'bsc', 'bsc-test'];
 
 export const getEtherscanPath = async (contractName: string) => {
   const paths = await listSolidityFiles(DRE.config.paths.sources);

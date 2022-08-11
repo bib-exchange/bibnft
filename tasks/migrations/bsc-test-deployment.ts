@@ -7,7 +7,7 @@ import { checkVerification } from '../../helpers/etherscan-verification';
 import { getBIBAdminPerNetwork } from '../../helpers/constants';
 require('dotenv').config();
 
-task('bsc-test-deployment', 'Deployment in shibuya network')
+task('bsc-test-deployment', 'Deployment in bsc-test network')
   .addFlag(
     'verify',
     'Verify contract.'
@@ -19,7 +19,7 @@ task('bsc-test-deployment', 'Deployment in shibuya network')
 
     if (!admin) {
       throw Error(
-        'The --admin parameter must be set for shibuya network. Set an Ethereum address as --admin parameter input.'
+        'The --admin parameter must be set for bsc-test network. Set an Ethereum address as --admin parameter input.'
       );
     }
 
@@ -28,5 +28,32 @@ task('bsc-test-deployment', 'Deployment in shibuya network')
       checkVerification();
     }
 
-    console.log('\n✔️ Finished the deployment of the BIB Token Shibuya Enviroment. ✔️');
+     // 1. deploy SoccerStarNft
+     await DRE.run(`deploy-${eContractid.SoccerStarNft}`, { verify });
+
+     // 2. deploy ComposedSoccerStarNft
+     await DRE.run(`deploy-${eContractid.ComposedSoccerStarNft}`, { verify });
+ 
+     // 3. deploy SoccerStarNftMarket
+     await DRE.run(`deploy-${eContractid.SoccerStarNftMarket}`, { verify });
+ 
+     // 4. deploy StakedSoccerStarNftV2
+     await DRE.run(`deploy-${eContractid.StakedSoccerStarNftV2}`, { verify });
+ 
+     // 5. deploy StakedDividendTracker
+     await DRE.run(`deploy-dividend`, { verify });
+ 
+ 
+     // 1
+     await DRE.run(`initialize-${eContractid.SoccerStarNft}`, { verify });
+     // 2
+     await DRE.run(`initialize-${eContractid.ComposedSoccerStarNft}`, { verify });
+     // 3
+     await DRE.run(`initialize-${eContractid.SoccerStarNftMarket}`, { verify });
+     // 4
+     await DRE.run(`initialize-${eContractid.StakedSoccerStarNftV2}`, { verify });
+     // 5
+     await DRE.run(`initialize-dividend`, { verify });
+ 
+    console.log('\n✔️ Finished the deployment of the BSC-test Enviroment. ✔️');
   });

@@ -7,7 +7,7 @@ import { checkVerification } from '../../helpers/etherscan-verification';
 import { getBIBAdminPerNetwork } from '../../helpers/constants';
 require('dotenv').config();
 
-task('bsc-deployment', 'Deployment in astar network')
+task('bsc-deployment', 'Deployment in bsc network')
   .addFlag(
     'verify',
     'Verify contracts.'
@@ -18,7 +18,7 @@ task('bsc-deployment', 'Deployment in astar network')
     const admin = getBIBAdminPerNetwork(network);
     if (!admin) {
       throw Error(
-        'The --admin parameter must be set for astar network. Set an Ethereum address as --admin parameter input.'
+        'The --admin parameter must be set for bsc network. Set an Ethereum address as --admin parameter input.'
       );
     }
 

@@ -1,27 +1,59 @@
 import { task } from 'hardhat/config';
 import { HardhatRuntimeEnvironment } from 'hardhat/types';
 
+import { eEthereumNetwork } from '../../helpers/types-common';
 import { eContractid } from '../../helpers/types';
-import { getEthersSigners } from '../../helpers/contracts-helpers';
 import { checkVerification } from '../../helpers/etherscan-verification';
+import { getBIBAdminPerNetwork } from '../../helpers/constants';
 require('dotenv').config();
 
-task('dev-deployment', 'Deployment in hardhat')
-  .addFlag('verify', 'Verify BIBToken and InitializableAdminUpgradeabilityProxy contract.')
-  .setAction(async ({ admin, verify }, localBRE) => {
+task('dev-deployment', 'Deployment in bsc-test network')
+  .addFlag(
+    'verify',
+    'Verify contract.'
+  )
+  .setAction(async ({ verify }, localBRE) => {
     const DRE: HardhatRuntimeEnvironment = await localBRE.run('set-dre');
+    const network = DRE.network.name as eEthereumNetwork;
+    const admin = getBIBAdminPerNetwork(network);
 
-    // If admin parameter is NOT set, the BIB Admin will be the
-    // second account provided via buidler config.
-    const [, secondaryWallet] = await getEthersSigners();
-    const BIBAdmin = admin || (await secondaryWallet.getAddress());
-
-    console.log('BIB ADMIN', BIBAdmin);
+    if (!admin) {
+      throw Error(
+        'The --admin parameter must be set for bsc-test network. Set an Ethereum address as --admin parameter input.'
+      );
+    }
 
     // If Etherscan verification is enabled, check needed enviroments to prevent loss of gas in failed deployments.
     if (verify) {
       checkVerification();
     }
 
-    console.log('\n👷 Finished the deployment of the BIB  Development Enviroment. 👷');
+    // 1. deploy SoccerStarNft
+    await DRE.run(`deploy-${eContractid.SoccerStarNft}`, { verify });
+
+    // 2. deploy ComposedSoccerStarNft
+    await DRE.run(`deploy-${eContractid.ComposedSoccerStarNft}`, { verify });
+
+    // 3. deploy SoccerStarNftMarket
+    await DRE.run(`deploy-${eContractid.SoccerStarNftMarket}`, { verify });
+
+    // 4. deploy StakedSoccerStarNftV2
+    await DRE.run(`deploy-${eContractid.StakedSoccerStarNftV2}`, { verify });
+
+    // 5. deploy StakedDividendTracker
+    await DRE.run(`deploy-dividend`, { verify });
+
+
+    // 1
+    await DRE.run(`initialize-${eContractid.SoccerStarNft}`, { verify });
+    // 2
+    await DRE.run(`initialize-${eContractid.ComposedSoccerStarNft}`, { verify });
+    // 3
+    await DRE.run(`initialize-${eContractid.SoccerStarNftMarket}`, { verify });
+    // 4
+    await DRE.run(`initialize-${eContractid.StakedSoccerStarNftV2}`, { verify });
+    // 5
+    await DRE.run(`initialize-dividend`, { verify });
+
+    console.log('\n✔️ Finished the deployment of the BSC-test Enviroment. ✔️');
   });

@@ -14,7 +14,11 @@ import { MockBusd } from '../types/MockBusd';
 import { MockBibOracle } from '../types/MockBibOracle';
 import {Ierc20Detailed} from '../types/Ierc20Detailed';
 import {SoccerStarNft} from '../types/SoccerStarNft';
+import {ComposedSoccerStarNft} from '../types/ComposedSoccerStarNft';
 import {StakedSoccerStarNftV2} from '../types/StakedSoccerStarNftV2';
+import {SoccerStarNftMarket} from '../types/SoccerStarNftMarket';
+import {StakedDividendTracker} from '../types/StakedDividendTracker';
+import {FeeCollector} from '../types/FeeCollector';
 
 export const registerContractInJsonDb = async (contractId: string, contractInstance: Contract) => {
   const currentNetwork = DRE.network.name;
@@ -59,6 +63,16 @@ export const getCurrentBlockTimestamp = async (blockNumber:number) => {
   return (await DRE.ethers.provider.getBlock(blockNumber)).timestamp;
 };
  
+export const deployInitializableAdminUpgradeabilityProxy = async (verify?: boolean) => {
+  const id = eContractid.InitializableAdminUpgradeabilityProxy;
+  const args: string[] = [];
+  const instance = await deployContract<InitializableAdminUpgradeabilityProxy>(id, args);
+  await instance.deployTransaction.wait();
+  if (verify) {
+    await verifyContract(id, instance.address, args);
+  }
+  return instance;
+};
 
 export const decodeAbiNumber = (data: string): number =>
   parseInt(utils.defaultAbiCoder.decode(['uint256'], data).toString());
@@ -75,6 +89,28 @@ const deployContract = async <ContractType extends Contract>(
   return contract;
 };
 
+export const deployStakedDividendTracker = async (caller:string, rewardToken:string, verify?: boolean) => {
+  const id = eContractid.StakedDividendTracker;
+  const args: string[] = [caller, rewardToken];
+  const instance = await deployContract<StakedDividendTracker>(id, args);
+  await instance.deployTransaction.wait();
+  if (verify) {
+    await verifyContract(id, instance.address, args);
+  }
+  return instance;
+};
+
+export const deployFeeCollector = async (verify?: boolean) => {
+  const id = eContractid.FeeCollector;
+  const args: string[] = [];
+  const instance = await deployContract<FeeCollector>(id, args);
+  await instance.deployTransaction.wait();
+  if (verify) {
+    await verifyContract(id, instance.address, args);
+  }
+  return instance;
+};
+
 export const deployStakedSoccerStarNftV2 = async (verify?: boolean) => {
   const id = eContractid.StakedSoccerStarNftV2;
   const args: string[] = [];
@@ -86,10 +122,32 @@ export const deployStakedSoccerStarNftV2 = async (verify?: boolean) => {
   return instance;
 };
 
-export const deploySoccerStarNft = async ([_maxMintSupply, _bibContract, _busdContract, _treasury, _priceOracle]:[string, string, string, string, string],verify?: boolean) => {
+export const deploySoccerStarNft = async (verify?: boolean) => {
   const id = eContractid.SoccerStarNft;
-  const args: string[] = [_maxMintSupply, _bibContract, _busdContract, _treasury, _priceOracle];
+  const args: string[] = [];
   const instance = await deployContract<SoccerStarNft>(id, args);
+  await instance.deployTransaction.wait();
+  if (verify) {
+    await verifyContract(id, instance.address, args);
+  }
+  return instance;
+};
+
+export const deploySoccerStarNftMarket = async (verify?: boolean) => {
+  const id = eContractid.SoccerStarNftMarket;
+  const args: string[] = [];
+  const instance = await deployContract<SoccerStarNftMarket>(id, args);
+  await instance.deployTransaction.wait();
+  if (verify) {
+    await verifyContract(id, instance.address, args);
+  }
+  return instance;
+};
+
+export const deployComposedSoccerStarNft = async (verify?: boolean) => {
+  const id = eContractid.ComposedSoccerStarNft;
+  const args: string[] = [];
+  const instance = await deployContract<ComposedSoccerStarNft>(id, args);
   await instance.deployTransaction.wait();
   if (verify) {
     await verifyContract(id, instance.address, args);
@@ -160,6 +218,76 @@ export const getSoccerStarNft = async (address?: tEthereumAddress) => {
   return await getContract<SoccerStarNft>(
     eContractid.SoccerStarNft,
     address || (await getDb().get(`${eContractid.SoccerStarNft}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getSoccerStarNftImpl = async (address?: tEthereumAddress) => {
+  return await getContract<SoccerStarNft>(
+    eContractid.SoccerStarNft,
+    address || (await getDb().get(`${eContractid.SoccerStarNftImpl}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getComposedSoccerStarNft = async (address?: tEthereumAddress) => {
+  return await getContract<ComposedSoccerStarNft>(
+    eContractid.ComposedSoccerStarNft,
+    address || (await getDb().get(`${eContractid.ComposedSoccerStarNft}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getComposedSoccerStarNftImpl = async (address?: tEthereumAddress) => {
+  return await getContract<ComposedSoccerStarNft>(
+    eContractid.ComposedSoccerStarNft,
+    address || (await getDb().get(`${eContractid.ComposedSoccerStarNftImpl}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getSoccerStarNftMarket = async (address?: tEthereumAddress) => {
+  return await getContract<SoccerStarNftMarket>(
+    eContractid.SoccerStarNftMarket,
+    address || (await getDb().get(`${eContractid.SoccerStarNftMarket}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getSoccerStarNftMarketImpl = async (address?: tEthereumAddress) => {
+  return await getContract<SoccerStarNftMarket>(
+    eContractid.SoccerStarNftMarket,
+    address || (await getDb().get(`${eContractid.SoccerStarNftMarketImpl}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getStakedSoccerStarNftV2 = async (address?: tEthereumAddress) => {
+  return await getContract<StakedSoccerStarNftV2>(
+    eContractid.StakedSoccerStarNftV2,
+    address || (await getDb().get(`${eContractid.StakedSoccerStarNftV2}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getStakedSoccerStarNftV2Impl = async (address?: tEthereumAddress) => {
+  return await getContract<StakedSoccerStarNftV2>(
+    eContractid.StakedSoccerStarNftV2,
+    address || (await getDb().get(`${eContractid.StakedSoccerStarNftV2Impl}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getFeeCollector = async (address?: tEthereumAddress) => {
+  return await getContract<FeeCollector>(
+    eContractid.FeeCollector,
+    address || (await getDb().get(`${eContractid.FeeCollector}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getFeeCollectorImpl = async (address?: tEthereumAddress) => {
+  return await getContract<FeeCollector>(
+    eContractid.FeeCollector,
+    address || (await getDb().get(`${eContractid.FeeCollectorImpl}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getStakedDividendTracker = async (address?: tEthereumAddress) => {
+  return await getContract<StakedDividendTracker>(
+    eContractid.StakedDividendTracker,
+    address || (await getDb().get(`${eContractid.StakedDividendTracker}.${DRE.network.name}`).value()).address
   );
 };
 

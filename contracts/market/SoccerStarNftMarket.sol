@@ -12,12 +12,12 @@ import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {ISoccerStarNftMarket} from "../interfaces/ISoccerStarNftMarket.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 import {IFeeCollector} from "../interfaces/IFeeCollector.sol";
-import {VersionedInitializable} from "../misc/VersionedInitializable.sol";
+import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 
 contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitializable{
     using SafeMath for uint;
 
-    uint constant VERSION = 1;
+    uint constant VERSION = 0x1;
 
     address public treasury;
 
@@ -56,14 +56,18 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     mapping(address=>mapping(uint=>uint[])) public tokenOffersTb;
 
     function initialize(
-        address _treasury,
         address _tokenContract,
         address _bibContract,
-        address _busdContract) public initializer{
+        address _busdContract,
+        address _treasury
+        ) public initializer{
         treasury = _treasury;
         tokenContract = ISoccerStarNft(_tokenContract);
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
+
+        // set owner
+        _owner = msg.sender;
     }
 
     function getBlockTime() public override view returns(uint){

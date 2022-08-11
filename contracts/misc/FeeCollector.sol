@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
+import {Ownable} from "../deps/Ownable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeCast} from "../lib/SafeCast.sol";
+import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Ownable} from  "@openzeppelin/contracts/access/Ownable.sol";
-import {IRewardDistributor} from "../interfaces/IRewardDistributor.sol";
+import {IFeeReceiver} from "../interfaces/IFeeReceiver.sol";
+import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 
-contract FeeCollector is  Ownable {
+contract FeeCollector is Ownable,VersionedInitializable {
     using SafeMath for uint;
     using SafeCast for uint;
 
@@ -18,10 +20,19 @@ contract FeeCollector is  Ownable {
 
     mapping(address=>bool) protocolAddress;
 
-    uint public vaultRatio;
+    uint public constant VERSION = 0x01;
+    uint public vaultRatio = 150;
+    uint public stakedRatio = 400;
+    uint public kolRatio = 50;
+    uint public poolRatio = 550;
+
     uint public constant FEE_RATIO_DIV = 1000;
     
-    IRewardDistributor rewardDistributor;
+    IFeeReceiver stakedReceiver;
+    IFeeReceiver kolReceiver;
+    IFeeReceiver poolReceiver;
+    IUniswapV2Router02 public uniswapV2Router;
+
     address vault;
 
     IERC20 bibToken;
@@ -36,32 +47,64 @@ contract FeeCollector is  Ownable {
     event VaultChanged(address sender, address oldValue, address newValue);
     event BIBContractChanged(address sender, address oldValue, address newValue);
     event BUSDContractChanged(address sender, address oldValue, address newValue);
-    event VaultRatioChanged(address sender, uint oldValue, uint newValue);
-    event RewardDistributorChanged(address sender, address oldValue, address newValue);
-    event HandleCollect(address sender, uint vault, uint reward, TokenType tokenType);
+    event RouterContractChanged(address sender, address oldValue, address newValue);
+    event HandleCollect(address sender, TokenType tokenType, uint amount);
 
-    constructor(
+    function getRevision() internal pure override returns (uint256){
+        return VERSION;
+    }
+
+    function initialize(
         address _vault,
         address _bibToken,
         address _busdToken,
-        address _rewardDistributor
-        ){
+        address _stakedReceiver,
+        address _kolReceiver,
+        address _poolReceiver
+        ) public initializer {
+            
         vault = _vault;
         bibToken = IERC20(_bibToken);
         busdToken = IERC20(_busdToken);
-        rewardDistributor = IRewardDistributor(_rewardDistributor);
+
+        stakedReceiver = IFeeReceiver(_stakedReceiver);
+        kolReceiver = IFeeReceiver(_kolReceiver);
+        poolReceiver = IFeeReceiver(_poolReceiver);
+        _owner = msg.sender;
+    }
+
+    function setDistributeRatio(
+        uint _vaultRatio,
+        uint _stakedRatio,
+        uint _kolRatio,
+        uint _poolRatio
+        ) public {
+         vaultRatio = _vaultRatio;
+         kolRatio = _kolRatio;
+         poolRatio = _poolRatio;
+         stakedRatio = _stakedRatio;
+
+        require(vaultRatio <= FEE_RATIO_DIV, "INVALID_VAULT_RATIO");
+        require(kolRatio.add(poolRatio).add(stakedRatio) <= FEE_RATIO_DIV, "INVALID_DIVEND_RATIO");
+    }
+
+    function setFeeReceiver(
+        address _stakedReceiver,
+        address _kolReceiver,
+        address _poolReceiver) public onlyOwner{
+        require(address(0) != _stakedReceiver, "INVALID_ADDRESS");
+        require(address(0) != _kolReceiver, "INVALID_ADDRESS");
+        require(address(0) != _poolReceiver, "INVALID_ADDRESS");
+
+        stakedReceiver = IFeeReceiver(_stakedReceiver);
+        kolReceiver = IFeeReceiver(_kolReceiver);
+        poolReceiver = IFeeReceiver(_poolReceiver);
     }
 
     function setBIBContract(address _bibToken) public onlyOwner{
         require(address(0) != _bibToken, "INVALID_ADDRESS");
         emit BIBContractChanged(msg.sender, address(bibToken), _bibToken);
         bibToken = IERC20(_bibToken);
-    }
-
-    function setRewardDistributor(address _rewardDistributor) public onlyOwner{
-        require(address(0) != _rewardDistributor, "INVALID_ADDRESS");
-        emit RewardDistributorChanged(msg.sender, address(rewardDistributor), _rewardDistributor);
-        rewardDistributor = IRewardDistributor(_rewardDistributor);
     }
 
     function setBUSDContract(address _busdToken) public onlyOwner{
@@ -76,10 +119,10 @@ contract FeeCollector is  Ownable {
         vault = _vault;
     }
 
-    function setVaultRatio(uint _vaultRatio) public onlyOwner{
-        require(_vaultRatio <= FEE_RATIO_DIV, "INVALID_RATIO");
-        emit VaultRatioChanged(msg.sender, vaultRatio, _vaultRatio);
-        vaultRatio = _vaultRatio;
+   function setSwapRouter(address _uniswapV2Router) public onlyOwner{
+        require(address(0) != _uniswapV2Router, "INVALID_ADDRESS");
+        emit RouterContractChanged(msg.sender, address(uniswapV2Router), _uniswapV2Router);
+        uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
     }
 
     function addProtocolAdress(address protocolAddr) public onlyOwner{
@@ -99,43 +142,91 @@ contract FeeCollector is  Ownable {
         _;
     }
 
-    function caculateFees(uint amount) public pure  returns(uint, uint){
-        uint vaultPart =  amount.mul(FEE_RATIO_DIV).div(FEE_RATIO_DIV);
-        return (vaultPart, amount.sub(vaultPart));
+    function caculateFees(uint amount, uint feeRatio) public pure  returns(uint, uint){
+        uint firstPart =  amount.mul(feeRatio).div(FEE_RATIO_DIV);
+        return (firstPart, amount.sub(firstPart));
     }
 
-    function distributeFees() public onlyOwner(){
+    function distributeFees() public onlyOwner{
         handleCollectBIB(bibToken.balanceOf(address(this)));
         handleCollectBUSD(busdToken.balanceOf(address(this)));
         handleCollectBNB(address(this).balance);
     }
 
-    function handleCollectBIB(uint amount) public onlyProtocolAddress{
-        if(address(0) != address(rewardDistributor) && address(0) != vault){
-            (uint vaultPart, uint rewardPart) = caculateFees(amount);
+    function distribute(uint amount) internal {
+        (uint vaultPart,uint remain) = caculateFees(amount, vaultRatio);
+        // to vault
+        if(address(0) != vault){
             bibToken.transfer(vault, vaultPart);
-            bibToken.transfer(address(rewardDistributor), rewardPart);
-            rewardDistributor.distributeBIBReward(amount);
-            emit HandleCollect(msg.sender, vaultPart, rewardPart, TokenType.TOKEN_TYPE_BIB);
         }
+        // stake part
+        (uint stakedPart, ) = caculateFees(remain, stakedRatio);
+        if(address(0) != address(stakedReceiver)){
+            bibToken.transfer(address(stakedReceiver), stakedPart);
+            stakedReceiver.handleReceive(stakedPart);
+        }
+        // kol part
+        (uint kolPart, ) = caculateFees(remain, kolRatio);
+        if(address(0) != address(kolReceiver)){
+            bibToken.transfer(address(kolReceiver), kolPart);
+            kolReceiver.handleReceive(kolPart);
+        }
+        // kol part
+        (uint poolPart, ) = caculateFees(remain, poolRatio);
+        if(address(0) != address(poolReceiver)){
+            bibToken.transfer(address(poolReceiver), poolPart);
+            poolReceiver.handleReceive(poolPart);
+        }
+    }
+   
+    function handleCollectBIB(uint amount) public onlyProtocolAddress{
+        distribute(amount);
+        emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BIB, amount);
     }
 
     function handleCollectBUSD(uint amount) public onlyProtocolAddress{
-        if(address(0) != address(rewardDistributor) && address(0) != vault){
-            (uint vaultPart, uint rewardPart) = caculateFees(amount);
-            busdToken.transfer(vault, vaultPart);
-            busdToken.transfer(address(rewardDistributor), rewardPart);
-            rewardDistributor.distributeBUSDReward(amount);
-            emit HandleCollect(msg.sender, vaultPart, rewardPart, TokenType.TOKEN_TYPE_BUSD);
-        }
+        // swap BIB
+        address[] memory path = new address[](2);
+        path[0] = address(busdToken);
+        path[1] = address(bibToken);
+
+        bibToken.approve(address(uniswapV2Router), amount);
+
+        uint balanceBefore = bibToken.balanceOf(address(this));
+
+        // make the swap
+        uniswapV2Router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amount,
+            0,
+            path,
+            address(this),
+            block.timestamp
+        );
+        uint swapped = bibToken.balanceOf(address(this)).sub(balanceBefore);
+
+        distribute(swapped);
+        emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BUSD, amount);
     }
 
     function handleCollectBNB(uint amount) public onlyProtocolAddress{
-        if(address(0) != address(rewardDistributor) && address(0) != vault){
-            (uint vaultPart, uint rewardPart) = caculateFees(amount);
-            payable(vault).transfer(vaultPart);
-            rewardDistributor.distributeETHReward{value:rewardPart}(amount);
-            emit HandleCollect(msg.sender, vaultPart, rewardPart, TokenType.TOKEN_TYPE_BUSD);
-        }
+        // swap BIB
+        address[] memory path = new address[](2);
+        path[0] = uniswapV2Router.WETH();
+        path[1] = address(bibToken);
+
+        uint balanceBefore = bibToken.balanceOf(address(this));
+
+        // make the swap
+        uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amount}(
+            0, 
+            path,
+            address(this),
+            block.timestamp
+        );
+
+        uint swapped = bibToken.balanceOf(address(this)).sub(balanceBefore);
+        distribute(swapped);
+
+        emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BUSD, amount);
     }
 }
