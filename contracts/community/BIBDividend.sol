@@ -6,9 +6,9 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "./library/FixedPoint.sol";
-import "./library/IterableMapping.sol";
-import "./library/SafeMathInt.sol";
+import "../lib/FixedPoint.sol";
+import "../lib/IterableMapping.sol";
+import "../lib/SafeMathInt.sol";
 
 contract BIBDividend is OwnableUpgradeable{
     using SafeMath for uint256;

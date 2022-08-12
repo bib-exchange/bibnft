@@ -6,10 +6,10 @@ import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
-import "./interface/IBIBNode.sol";
-import "./interface/IBIBDividend.sol";
-import "./interface/ISoccerStarNft.sol";
-import "./library/StructuredLinkedList.sol";
+import "../interfaces/IBIBNode.sol";
+import "../interfaces/IBIBDividend.sol";
+import "../interfaces/ISoccerStarNft.sol";
+import "../lib/StructuredLinkedList.sol";
 
 contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     using SafeMath for uint256;
