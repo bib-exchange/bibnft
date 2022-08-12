@@ -173,7 +173,7 @@ contract BIBDividend is OwnableUpgradeable{
     }
 
     function processAccount(address account, bool automatic) public returns (bool) {
-        uint256 amount = userClaim(account).add(nodeClaim(account));
+        uint256 amount = userClaim(account);
 
         if(amount > 0) {
             lastClaimTimes[account] = block.timestamp;
@@ -399,27 +399,25 @@ contract BIBDividend is OwnableUpgradeable{
     }
 
     function _getUnClaim(ExState memory userState, uint112 _exchangeRateMantissa, uint256 _dividendPerShare) internal pure returns(uint256){
+        uint256 _newDividend = _dividendPerShare.sub(userState.lastDividendPerShare).mul(userState.balance);
         if (_exchangeRateMantissa == userState.lastExchangeRateMantissa) {
-            return userState.unClaim;
+            return userState.unClaim.add(_newDividend);
         }
         uint256 deltaExchangeRateMantissa = uint256(_exchangeRateMantissa).sub(userState.lastExchangeRateMantissa);
         uint256 _new = FixedPoint.multiplyUintByMantissa(userState.balance, deltaExchangeRateMantissa);
-        uint256 _newDividend = _dividendPerShare.sub(userState.lastDividendPerShare).mul(userState.balance);
-        return _newDividend.add(_new).add(userState.unClaim);
+        return userState.unClaim.add(_new).add(_newDividend);
     }
 
     function _getNodeCurrentExchageMantissa() internal view returns(uint112) {
         uint256 newSeconds = _currentTime() - lastDripTimestamp;
-        uint256 allNewTokens;
-        allNewTokens = newSeconds.mul(dripRatePerSecond);
+        uint256 allNewTokens = newSeconds.mul(dripRatePerSecond);
         uint256 nodeNewTokens = allNewTokens.mul(nodeRate).div(100);
         return _getCurrentExchangeMantissa(nodeExchangeRateMantissa, nodeTotalStake, nodeNewTokens);
     }
 
     function _getUserCurrentExchageMantissa() internal view returns(uint112) {
         uint256 newSeconds = _currentTime() - lastDripTimestamp;
-        uint256 allNewTokens;
-        allNewTokens = newSeconds.mul(dripRatePerSecond);
+        uint256 allNewTokens = newSeconds.mul(dripRatePerSecond);
         uint256 nodeNewTokens = allNewTokens.mul(nodeRate).div(100);
         return _getCurrentExchangeMantissa(userExchangeRateMantissa, userTotalStake, allNewTokens.sub(nodeNewTokens));
     }
