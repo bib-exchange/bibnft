@@ -61,6 +61,7 @@
   "contributors": [],
   "license": "AGPLv3",
   "dependencies": {
+    "@openzeppelin/contracts-upgradeable": "^4.7.3",
     "delayed-stream": "^1.0.0",
     "dotenv": "^16.0.0",
     "tmp-promise": "^3.0.2"
