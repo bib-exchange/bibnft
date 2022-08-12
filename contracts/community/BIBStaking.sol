@@ -48,6 +48,16 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     mapping(uint256 => mapping(address => uint256)) public nodeStakedDetail;
     mapping(uint256 => Node) public nodeMap;
     
+    uint256 public gasForProcessing = 300000;
+    event GasForProcessingUpdated(uint256 indexed newValue, uint256 indexed oldValue);
+    event ProcessedDividendTracker(
+        uint256 iterations,
+        uint256 claims,
+        uint256 lastProcessedIndex,
+        bool indexed automatic,
+        uint256 gas,
+        address indexed processor
+    );
 
     event Staking(
         address indexed user,
@@ -145,6 +155,11 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
                 _unStake(operator, _tickets[i], alreadyStake.sub(_bibAmounts[i]));
             }
         }
+        
+        try BIBDividend.process(gasForProcessing) returns (uint256 iterations, uint256 claims, uint256 lastProcessedIndex) {
+            emit ProcessedDividendTracker(iterations, claims, lastProcessedIndex, true, gasForProcessing, tx.origin);
+        } 
+        catch {}
     }
 
     function _stake(address operator, uint256 _ticket, uint256 _bibAmount) private returns(bool) {
@@ -249,6 +264,12 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     }
     function setMaxSetupAmount(uint256 level, uint256 setupAmount) external onlyOwner {
         maxSetupAmount[level] = setupAmount;
+    }
+
+    function updateGasForProcessing(uint256 newValue) public onlyOwner {
+        require(newValue != gasForProcessing, "Token: Cannot update gasForProcessing to same value");
+        emit GasForProcessingUpdated(newValue, gasForProcessing);
+        gasForProcessing = newValue;
     }
     
     function getAvailableAmount(address _account) public view returns(uint256) {

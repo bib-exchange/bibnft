@@ -8,6 +8,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "./library/FixedPoint.sol";
 import "./library/IterableMapping.sol";
+import "./library/SafeMathInt.sol";
 
 contract BIBDividend is OwnableUpgradeable{
     using SafeMath for uint256;
@@ -46,14 +47,6 @@ contract BIBDividend is OwnableUpgradeable{
         address indexed user,
         uint256 newTokens
     );
-    event ProcessedDividendTracker(
-        uint256 iterations,
-        uint256 claims,
-        uint256 lastProcessedIndex,
-        bool indexed automatic,
-        uint256 gas,
-        address indexed processor
-    );
 
     IERC20Upgradeable public asset;
 
@@ -79,10 +72,8 @@ contract BIBDividend is OwnableUpgradeable{
     uint256 public lastProcessedIndex;
     mapping (address => uint256) public lastClaimTimes;
     uint256 public claimWait = 1 hours;
-    uint256 public gasForProcessing = 300000;
     uint256 public immutable minimumTokenBalanceForDividends = 1e5 * (10**9);
     event ClaimWaitUpdated(uint256 indexed newValue, uint256 indexed oldValue);
-    event GasForProcessingUpdated(uint256 indexed newValue, uint256 indexed oldValue);
     
     function initialize (
         IERC20Upgradeable _asset,
@@ -250,10 +241,6 @@ contract BIBDividend is OwnableUpgradeable{
         else {
             tokenHoldersMap.remove(user);
         }
-        try process(gasForProcessing) returns (uint256 iterations, uint256 claims, uint256 lastProcessedIndex) {
-            emit ProcessedDividendTracker(iterations, claims, lastProcessedIndex, true, gasForProcessing, tx.origin);
-        } 
-        catch {}
     }
 
     function setNodeBalance(address nodeOwner, uint256 amount) external onlyController {
@@ -263,10 +250,6 @@ contract BIBDividend is OwnableUpgradeable{
         nodeStates[nodeOwner].balance = amount.toUint128();
         
         tokenHoldersMap.set(nodeOwner, amount);
-        try process(gasForProcessing) returns (uint256 iterations, uint256 claims, uint256 lastProcessedIndex) {
-            emit ProcessedDividendTracker(iterations, claims, lastProcessedIndex, true, gasForProcessing, tx.origin);
-        } 
-        catch {}
     }
 
     function _captureNewTokensForUser(ExState storage userState, address user, uint112 _exchangeRateMantissa, uint256 _dividendPerShare) private returns (uint128){
@@ -298,12 +281,6 @@ contract BIBDividend is OwnableUpgradeable{
         require(newClaimWait != claimWait, "Token_Dividend_Tracker: Cannot update claimWait to same value");
         emit ClaimWaitUpdated(newClaimWait, claimWait);
         claimWait = newClaimWait;
-    }
-
-    function updateGasForProcessing(uint256 newValue) public onlyOwner {
-        require(newValue != gasForProcessing, "Token: Cannot update gasForProcessing to same value");
-        emit GasForProcessingUpdated(newValue, gasForProcessing);
-        gasForProcessing = newValue;
     }
 
     function getLastProcessedIndex() public view returns(uint256) {
