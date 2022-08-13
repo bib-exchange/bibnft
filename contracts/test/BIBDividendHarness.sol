@@ -1,7 +1,7 @@
 
 pragma solidity ^0.8.9;
 
-import "../BIBDividend.sol";
+import "../community/BIBDividend.sol";
 
 contract BIBDividendHarness is BIBDividend {
 
