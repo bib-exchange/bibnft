@@ -212,21 +212,21 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
         if(payMethod == PayMethod.PAY_BNB) {
             if(address(0) != address(feeCollector)) {
                 payable(address(feeCollector)).transfer(fees);
-                feeCollector.handleCollectBNB(fees);
+                try feeCollector.handleCollectBNB(fees) {} catch{}
             } else {
                 payable(address(treasury)).transfer(fees);
             }
         } else if(payMethod == PayMethod.PAY_BUSD) {
             if(address(0) != address(feeCollector)) {
                 busdContract.transfer(address(feeCollector), fees);
-                feeCollector.handleCollectBUSD(fees);
+                try feeCollector.handleCollectBUSD(fees) {} catch{}
             } else {
                 busdContract.transfer(treasury, fees);
             }
         } else {
             if(address(0) != address(feeCollector)) {
                 bibContract.transfer(address(feeCollector), fees);
-                feeCollector.handleCollectBIB(fees);
+                try feeCollector.handleCollectBIB(fees) {} catch{}
             } else {
                 bibContract.transfer(treasury, fees);
             }
@@ -238,21 +238,21 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
         if(payMethod == PayMethod.PAY_BNB) {
             if(address(0) != address(feeCollector)) {
                 payable(address(feeCollector)).transfer(fees);
-                feeCollector.handleCollectBNB(fees);
+                try feeCollector.handleCollectBNB(fees) {} catch{}
             } else {
                 payable(address(treasury)).transfer(fees);
             }
         } else if(payMethod == PayMethod.PAY_BUSD) {
             if(address(0) != address(feeCollector)) {
                 busdContract.transferFrom(msg.sender, address(feeCollector), fees);
-                feeCollector.handleCollectBUSD(fees);
+                try feeCollector.handleCollectBUSD(fees) {}catch{}
             } else {
                 busdContract.transferFrom(msg.sender, treasury, fees);
             }
         } else {
             if(address(0) != address(feeCollector)) {
                 bibContract.transferFrom(msg.sender, address(feeCollector), fees);
-                feeCollector.handleCollectBIB(fees);
+                try feeCollector.handleCollectBIB(fees) {}catch{}
             } else {
                 bibContract.transferFrom(msg.sender, treasury, fees);
             }

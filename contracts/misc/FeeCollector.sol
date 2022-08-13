@@ -41,7 +41,7 @@ contract FeeCollector is Ownable,VersionedInitializable {
     IERC20 busdToken;
 
     enum TokenType{
-        TOKEN_TYPE_ETH,
+        TOKEN_TYPE_BNB,
         TOKEN_TYPE_BIB,
         TOKEN_TYPE_BUSD
     } 
@@ -231,6 +231,6 @@ contract FeeCollector is Ownable,VersionedInitializable {
             distribute(swapped);
         }
         
-        emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BUSD, amount);
+        emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BNB, amount);
     }
 }
