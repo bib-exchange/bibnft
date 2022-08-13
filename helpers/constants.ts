@@ -19,6 +19,8 @@ export const SUPPORTED_ETHERSCAN_NETWORKS = ['main', 'bsc', 'bsc_test'];
 export const MAX_NFT_QUOTA = "29930";
 export const EMISSION_PER_SECONDS = 10000; // TODO: need change once confirmed
 export const DISTRIBUTION_END = 1000000; // TODO: need change once confirmed
+export const MIN_BUSD_SWAP_THRESHOLD = ethers.utils.parseEther('10');
+export const MIN_BNB_SWAP_THRESHOLD = ethers.utils.parseEther('0.01');
 
 export const getBIBTokenDomainSeparatorPerNetwork = (network: eEthereumNetwork): tEthereumAddress =>
   getParamPerNetwork<tEthereumAddress>(

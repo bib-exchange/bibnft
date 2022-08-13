@@ -1,7 +1,7 @@
 import { task } from 'hardhat/config';
 import { eContractid } from '../../helpers/types';
 import { eEthereumNetwork } from '../../helpers/types-common';
-
+import { waitForTx } from '../../helpers/misc-utils';
 import {
   deployStakedDividendTracker,
   deployFeeCollector,
@@ -13,7 +13,8 @@ import {
 const { 
   StakedDividendTracker,
   FeeCollector,
-  FeeCollectorImpl
+  FeeCollectorImpl,
+  StakedSoccerStarNftV2
 } = eContractid;
 
 import { ZERO_ADDRESS,
@@ -39,6 +40,10 @@ task(`deploy-dividend`, `Deploy dividend contracts`)
     const stakedDividendTracker = await deployStakedDividendTracker(
       stakedSoccerStarNftV2.address, bibToken, verify);
     await registerContractInJsonDb(StakedDividendTracker, stakedDividendTracker);
+
+    console.log(`\tbind ${StakedDividendTracker} tracker to ${StakedSoccerStarNftV2}`);
+    await waitForTx(
+      await stakedSoccerStarNftV2.setBalanceHook(stakedDividendTracker.address));
 
     // 2
     console.log(`\n- ${FeeCollector} deployment`);

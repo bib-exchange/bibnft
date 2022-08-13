@@ -18,13 +18,15 @@ contract FeeCollector is Ownable,VersionedInitializable {
     uint totalBUSDRecieved;
     uint totalBIBRecieved;
 
-    mapping(address=>bool) protocolAddress;
+    mapping(address=>bool) allowCall;
 
     uint public constant VERSION = 0x01;
     uint public vaultRatio = 150;
     uint public stakedRatio = 400;
     uint public kolRatio = 50;
     uint public poolRatio = 550;
+    uint public minBUSDToSwap = 100;
+    uint public minBNBToSwap = 0.01 ether;
 
     uint public constant FEE_RATIO_DIV = 1000;
     
@@ -78,7 +80,7 @@ contract FeeCollector is Ownable,VersionedInitializable {
         uint _stakedRatio,
         uint _kolRatio,
         uint _poolRatio
-        ) public {
+        ) public onlyOwner{
          vaultRatio = _vaultRatio;
          kolRatio = _kolRatio;
          poolRatio = _poolRatio;
@@ -88,14 +90,15 @@ contract FeeCollector is Ownable,VersionedInitializable {
         require(kolRatio.add(poolRatio).add(stakedRatio) <= FEE_RATIO_DIV, "INVALID_DIVEND_RATIO");
     }
 
+    function setSwapThreshHold(uint _minBUSDToSwap, uint _minBNBToSwap) public onlyOwner{
+        minBUSDToSwap = _minBUSDToSwap;
+        minBNBToSwap = _minBNBToSwap;
+    }
+
     function setFeeReceiver(
         address _stakedReceiver,
         address _kolReceiver,
         address _poolReceiver) public onlyOwner{
-        require(address(0) != _stakedReceiver, "INVALID_ADDRESS");
-        require(address(0) != _kolReceiver, "INVALID_ADDRESS");
-        require(address(0) != _poolReceiver, "INVALID_ADDRESS");
-
         stakedReceiver = IFeeReceiver(_stakedReceiver);
         kolReceiver = IFeeReceiver(_kolReceiver);
         poolReceiver = IFeeReceiver(_poolReceiver);
@@ -125,20 +128,16 @@ contract FeeCollector is Ownable,VersionedInitializable {
         uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
     }
 
-    function addProtocolAdress(address protocolAddr) public onlyOwner{
-        protocolAddress[protocolAddr] = true;
+    function setAllowCall(address caller, bool value) public onlyOwner{
+        allowCall[caller] = value;
     }
 
-    function removeProtocolAddress(address protocolAddr) public onlyOwner{
-        delete protocolAddress[protocolAddr];
+    function isAllowCall(address caller) public view returns(bool){
+        return allowCall[caller];
     }
 
-    function isProtocolAddress(address protocolAddr) public view returns(bool){
-        return protocolAddress[protocolAddr];
-    }
-
-    modifier onlyProtocolAddress(){
-        require(protocolAddress[msg.sender], "ONLY_PROTOCOL_ADDRESS_CAN_CALL");
+    modifier onlyCaller(){
+        require(allowCall[msg.sender], "ONLY_PROTOCOL_ADDRESS_CAN_CALL");
         _;
     }
 
@@ -179,54 +178,59 @@ contract FeeCollector is Ownable,VersionedInitializable {
         }
     }
    
-    function handleCollectBIB(uint amount) public onlyProtocolAddress{
+    function handleCollectBIB(uint amount) public onlyCaller{
         distribute(amount);
         emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BIB, amount);
     }
 
-    function handleCollectBUSD(uint amount) public onlyProtocolAddress{
-        // swap BIB
-        address[] memory path = new address[](2);
-        path[0] = address(busdToken);
-        path[1] = address(bibToken);
+    function handleCollectBUSD(uint amount) public onlyCaller{
+        if(busdToken.balanceOf(address(this)) >= minBUSDToSwap){
+            // swap BIB
+            address[] memory path = new address[](2);
+            path[0] = address(busdToken);
+            path[1] = address(bibToken);
 
-        bibToken.approve(address(uniswapV2Router), amount);
+            bibToken.approve(address(uniswapV2Router), amount);
 
-        uint balanceBefore = bibToken.balanceOf(address(this));
+            uint balanceBefore = bibToken.balanceOf(address(this));
 
-        // make the swap
-        uniswapV2Router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
-            amount,
-            0,
-            path,
-            address(this),
-            block.timestamp
-        );
-        uint swapped = bibToken.balanceOf(address(this)).sub(balanceBefore);
+            // make the swap
+            uniswapV2Router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+                amount,
+                0,
+                path,
+                address(this),
+                block.timestamp
+            );
+            uint swapped = bibToken.balanceOf(address(this)).sub(balanceBefore);
 
-        distribute(swapped);
+            distribute(swapped);
+        }
+
         emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BUSD, amount);
     }
 
-    function handleCollectBNB(uint amount) public onlyProtocolAddress{
-        // swap BIB
-        address[] memory path = new address[](2);
-        path[0] = uniswapV2Router.WETH();
-        path[1] = address(bibToken);
+    function handleCollectBNB(uint amount) public onlyCaller{
+        if(address(this).balance >= minBNBToSwap){
+            // swap BIB
+            address[] memory path = new address[](2);
+            path[0] = uniswapV2Router.WETH();
+            path[1] = address(bibToken);
 
-        uint balanceBefore = bibToken.balanceOf(address(this));
+            uint balanceBefore = bibToken.balanceOf(address(this));
 
-        // make the swap
-        uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amount}(
-            0, 
-            path,
-            address(this),
-            block.timestamp
-        );
+            // make the swap
+            uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: amount}(
+                0, 
+                path,
+                address(this),
+                block.timestamp
+            );
 
-        uint swapped = bibToken.balanceOf(address(this)).sub(balanceBefore);
-        distribute(swapped);
-
+            uint swapped = bibToken.balanceOf(address(this)).sub(balanceBefore);
+            distribute(swapped);
+        }
+        
         emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BUSD, amount);
     }
 }

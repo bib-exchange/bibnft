@@ -18,6 +18,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     using SafeMath for uint;
 
     uint constant VERSION = 0x1;
+    bool public _paused;
 
     address public treasury;
 
@@ -68,6 +69,19 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
 
         // set owner
         _owner = msg.sender;
+    }
+
+    modifier onlyWhenNotPaused {
+        require(!_paused, "PAUSED");
+        _;
+    }
+
+    function puase() public onlyOwner {
+        _paused = true;
+    }
+
+    function unpause() public onlyOwner{
+        _paused = false;
     }
 
     function getBlockTime() public override view returns(uint){
@@ -129,7 +143,8 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     }
 
     // user create a order
-    function openOrder(address issuer, uint tokenId, PayMethod payMethod, uint price, uint expiration) public override payable{
+    function openOrder(address issuer, uint tokenId, PayMethod payMethod, uint price, uint expiration)
+     public override payable onlyWhenNotPaused{
         require(address(0) != issuer, "INVALID_ISSURE");
         require(expiration > block.timestamp, "EXPIRATION_TOO_SMALL");
         require(price > 0, "PRICE_NOT_BE_ZEROR");
@@ -245,7 +260,8 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     }
 
     // Buyer accept the price and makes a deal with the sepcific order
-    function acceptOrder(uint orderId) public  override payable {
+    function acceptOrder(uint orderId) 
+    public  override payable onlyWhenNotPaused{
         Order storage order = orderTb[orderId];
         require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender != order.owner, "SHOULD_NOT_BE_ORDER_OWNER");
@@ -301,7 +317,8 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     }
 
     // Owner accept the offer and make a deal
-    function acceptOffer(uint offerId) public  override payable{
+    function acceptOffer(uint offerId) 
+    public  override payable onlyWhenNotPaused{
         Offer storage offer = offerTb[offerId];
         require(address(0) != offer.issuer, "INVALID_OFFER");
         require(msg.sender != offer.buyer, "CANT_MAKE_DEAL_WITH_SELF");
@@ -350,7 +367,6 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
             fees
         );
 
-
         // liquadity offer and order if exist
         if(order.owner == msg.sender){
             _closeOrder(order.orderId);
@@ -360,7 +376,8 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     }
     
     // Owner updates order price
-    function updateOrderPrice(uint orderId, uint price) public override payable{
+    function updateOrderPrice(uint orderId, uint price) 
+    public override payable onlyWhenNotPaused{
         Order storage order = orderTb[orderId];
         require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
@@ -398,7 +415,8 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     }
 
     // Owner close the specific order if not dealed
-    function closeOrder(uint orderId) public override{
+    function closeOrder(uint orderId)
+     public override onlyWhenNotPaused{
         Order storage order = orderTb[orderId];
         require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
@@ -433,7 +451,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
 
     // Buyer make a offer to the specific order
     function makeOffer(address issuer, uint tokenId, PayMethod payMethod, uint price, uint expiration)
-     public override payable{
+     public override payable onlyWhenNotPaused{
         require(address(0) != issuer,"INVALID_ADDRESS");
         require(!isOwner(issuer, tokenId, msg.sender), "CANT_MAKE_OFFER_WITH_SELF");
         require(!hasOffer(issuer, tokenId, msg.sender), "HAS_MADE_OFFER");
@@ -470,7 +488,8 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     }
 
     // Buyer udpate offer bid price
-    function updateOfferPrice(uint offerId, uint price) public override payable{
+    function updateOfferPrice(uint offerId, uint price) 
+    public override payable onlyWhenNotPaused{
         Offer storage offer = offerTb[offerId];
         require(msg.sender == offer.buyer, "SHOULD_BE_OFFER_MAKER");
         require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
@@ -529,7 +548,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     }
 
     // Buyer cancle the specific order
-    function cancelOffer(uint offerId) public override{
+    function cancelOffer(uint offerId) public override onlyWhenNotPaused{
         Offer storage offer = offerTb[offerId];
         require(msg.sender == offer.buyer, "SHOULD_BE_OFFER_MAKER");
 

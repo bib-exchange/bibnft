@@ -11,10 +11,11 @@ const fatalErrors = [
   `Daily limit of 100 source code submissions reached`,
 ];
 
-export const SUPPORTED_ETHERSCAN_NETWORKS = ['main', 'ropsten', 'kovan', 'bsc', 'bsc-test'];
+export const SUPPORTED_ETHERSCAN_NETWORKS = ['main', 'ropsten', 'kovan', 'bsc', 'bsc_test'];
 
 export const getEtherscanPath = async (contractName: string) => {
   const paths = await listSolidityFiles(DRE.config.paths.sources);
+  console.log(paths);
   const path = paths.find((p) => p.includes(contractName));
   if (!path) {
     throw new Error(
@@ -46,7 +47,6 @@ export const verifyContract = async (
     );
   }
   const etherscanPath = await getEtherscanPath(contractName);
-
   try {
     console.log(
       '[ETHERSCAN][WARNING] DeBIBing Etherscan verification due their API can not find newly deployed contracts'

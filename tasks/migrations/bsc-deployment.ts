@@ -22,10 +22,7 @@ task('bsc-deployment', 'Deployment in bsc network')
       );
     }
 
-    // If Etherscan verification is enabled, check needed enviroments to prevent loss of gas in failed deployments.
-    if (verify) {
-      checkVerification();
-    }
+    await DRE.run(`deployment`, { verify });
 
     console.log('\n✔️ Finished the deployment of the BIB Token Astar Enviroment. ✔️');
   });
