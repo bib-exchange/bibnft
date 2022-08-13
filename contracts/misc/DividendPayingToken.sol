@@ -25,7 +25,7 @@ DividendPayingTokenOptionalInterface {
   using SafeMathUint for uint256;
   using SafeMathInt for int256;
 
-  IERC20 rewardToken;
+  IERC20 public rewardToken;
   bool public _paused;
   
   // With `magnitude`, we can properly distribute dividends even if the amount of received ether is small.

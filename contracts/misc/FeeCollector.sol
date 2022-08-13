@@ -18,7 +18,7 @@ contract FeeCollector is Ownable,VersionedInitializable {
     uint totalBUSDRecieved;
     uint totalBIBRecieved;
 
-    mapping(address=>bool) allowCall;
+    mapping(address=>bool) public allowCall;
 
     uint public constant VERSION = 0x01;
     uint public vaultRatio = 150;
@@ -30,15 +30,15 @@ contract FeeCollector is Ownable,VersionedInitializable {
 
     uint public constant FEE_RATIO_DIV = 1000;
     
-    IFeeReceiver stakedReceiver;
-    IFeeReceiver kolReceiver;
-    IFeeReceiver poolReceiver;
+    IFeeReceiver public stakedReceiver;
+    IFeeReceiver public kolReceiver;
+    IFeeReceiver public poolReceiver;
     IUniswapV2Router02 public uniswapV2Router;
 
-    address vault;
+    address public vault;
 
-    IERC20 bibToken;
-    IERC20 busdToken;
+    IERC20 public bibToken;
+    IERC20 public busdToken;
 
     enum TokenType{
         TOKEN_TYPE_BNB,
@@ -51,6 +51,7 @@ contract FeeCollector is Ownable,VersionedInitializable {
     event BUSDContractChanged(address sender, address oldValue, address newValue);
     event RouterContractChanged(address sender, address oldValue, address newValue);
     event HandleCollect(address sender, TokenType tokenType, uint amount);
+    event Distribute(address sender, address receiver, uint amount);
 
     function getRevision() internal pure override returns (uint256){
         return VERSION;
@@ -163,18 +164,20 @@ contract FeeCollector is Ownable,VersionedInitializable {
         if(address(0) != address(stakedReceiver)){
             bibToken.transfer(address(stakedReceiver), stakedPart);
             stakedReceiver.handleReceive(stakedPart);
+            emit Distribute(msg.sender, address(stakedReceiver), amount);
         }
         // kol part
         (uint kolPart, ) = caculateFees(remain, kolRatio);
         if(address(0) != address(kolReceiver)){
             bibToken.transfer(address(kolReceiver), kolPart);
-            kolReceiver.handleReceive(kolPart);
+            emit Distribute(msg.sender, address(kolReceiver), amount);
         }
         // kol part
         (uint poolPart, ) = caculateFees(remain, poolRatio);
         if(address(0) != address(poolReceiver)){
             bibToken.transfer(address(poolReceiver), poolPart);
             poolReceiver.handleReceive(poolPart);
+            emit Distribute(msg.sender, address(poolReceiver), amount);
         }
     }
    
@@ -190,7 +193,7 @@ contract FeeCollector is Ownable,VersionedInitializable {
             path[0] = address(busdToken);
             path[1] = address(bibToken);
 
-            bibToken.approve(address(uniswapV2Router), amount);
+            busdToken.approve(address(uniswapV2Router), amount);
 
             uint balanceBefore = bibToken.balanceOf(address(this));
 
