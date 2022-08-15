@@ -18,7 +18,8 @@ export enum eContractid {
   StakedDividendTracker = "StakedDividendTracker",
   FeeCollector = "FeeCollector",
   FeeCollectorImpl = 'FeeCollectorImpl',
-  InitializableAdminUpgradeabilityProxy = "InitializableAdminUpgradeabilityProxy"
+  InitializableAdminUpgradeabilityProxy = "InitializableAdminUpgradeabilityProxy",
+  StakedRewardUiDataProvider = "StakedRewardUiDataProvider"
 }
 
 export enum ProtocolErrors {}

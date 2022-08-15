@@ -18,7 +18,7 @@
     "test": "TS_NODE_TRANSPILE_ONLY=1 hardhat test",
     "coverage": "SKIP_LOAD=true npx hardhat typechain && node --max_old_space_size=6144 node_modules/.bin/hardhat coverage",
     "dev:deployment": "hardhat dev-deployment ",
-    "bsc-test:deployment": "npm run hardhat-bsc-test -- bsc-test-deployment",
+    "bsc-test:deployment": "npm run hardhat-bsc-test -- bsc-test-deployment --verify",
     "bsc:deployment": "npm run hardhat-bsc -- bsc-deployment",
     "dev-deployment": "npm run hardhat -- dev-deployment",
     "ci:clean": "rm -rf ./artifacts ./cache ./types"
@@ -38,6 +38,7 @@
     "bignumber.js": "9.0.0",
     "buidler-typechain": "0.1.1",
     "chai": "4.2.0",
+    "dotenv": "^8.2.0",
     "chai-bignumber": "3.0.0",
     "cross-env": "^7.0.3",
     "eth-sig-util": "2.5.3",
@@ -63,7 +64,7 @@
   "dependencies": {
     "@openzeppelin/contracts-upgradeable": "^4.7.3",
     "delayed-stream": "^1.0.0",
-    "dotenv": "^16.0.0",
+    "dotenv": "^8.2.0",
     "tmp-promise": "^3.0.2"
   }
 }

@@ -12,7 +12,6 @@ import "../interfaces/DividendPayingTokenInterface.sol";
 import "../interfaces/DividendPayingTokenOptionalInterface.sol";
 import "../interfaces/IFeeReceiver.sol";
 
-
 /// @title Dividend-Paying Token
 /// @dev A mintable ERC20 token that allows anyone to pay and distribute ether
 ///  to token holders as dividends and allows token holders to withdraw their dividends.
@@ -26,7 +25,8 @@ DividendPayingTokenOptionalInterface {
   using SafeMathUint for uint256;
   using SafeMathInt for int256;
 
-  IERC20 rewardToken;
+  IERC20 public rewardToken;
+  bool public _paused;
   
   // With `magnitude`, we can properly distribute dividends even if the amount of received ether is small.
   // For more discussion about choosing the value of `magnitude`,
@@ -52,14 +52,36 @@ DividendPayingTokenOptionalInterface {
   mapping(address => uint256) internal withdrawnDividends;
 
   uint256 public totalDividendsDistributed;
-  uint256 lastReceived;
+  address feeSender;
 
   constructor(address _rewardToken, string memory _name, string memory _symbol) ERC20(_name, _symbol) {
     rewardToken = IERC20(_rewardToken);
   }
 
-  function handleReceive(uint amount) public override {
-    amount = rewardToken.balanceOf(address(this)).sub(lastReceived);
+  modifier onlyWhenNotPaused {
+      require(!_paused, "PAUSED");
+      _;
+  }
+
+  function puase() public onlyOwner {
+      _paused = true;
+  }
+
+  function unpause() public onlyOwner{
+      _paused = false;
+  }
+
+  function setFeeSender(address sender) public override onlyOwner{
+    require(address(0) != sender, "INVALID_ADDRESS");
+    feeSender = sender;
+  }
+
+  modifier onlyFeeSender(){
+    require(feeSender == msg.sender, "ONLY_FEE_SENDER");
+    _;
+  }
+
+  function handleReceive(uint amount) public override onlyFeeSender{
     emit ReceivedFee(msg.sender, amount);
     _distributeDividends(amount);
   }
@@ -92,7 +114,7 @@ DividendPayingTokenOptionalInterface {
 
   /// @notice Withdraws the ether distributed to the sender.
   /// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
-  function withdrawDividend() public virtual override {
+  function withdrawDividend() public virtual override onlyWhenNotPaused{
     _withdrawDividendOfUser(payable(msg.sender));
   }
 
@@ -116,7 +138,6 @@ function _withdrawDividendOfUser(address payable user) internal returns (uint256
     return 0;
   }
 
-
   /// @notice View the amount of dividend in wei that an address can withdraw.
   /// @param _owner The address of a token holder.
   /// @return The amount of dividend in wei that `_owner` can withdraw.
@@ -137,7 +158,6 @@ function _withdrawDividendOfUser(address payable user) internal returns (uint256
   function withdrawnDividendOf(address _owner) public view override returns(uint256) {
     return withdrawnDividends[_owner];
   }
-
 
   /// @notice View the amount of dividend in wei that an address has earned in total.
   /// @dev accumulativeDividendOf(_owner) = withdrawableDividendOf(_owner) + withdrawnDividendOf(_owner)

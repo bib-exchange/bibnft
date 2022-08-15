@@ -19,6 +19,7 @@ import {StakedSoccerStarNftV2} from '../types/StakedSoccerStarNftV2';
 import {SoccerStarNftMarket} from '../types/SoccerStarNftMarket';
 import {StakedDividendTracker} from '../types/StakedDividendTracker';
 import {FeeCollector} from '../types/FeeCollector';
+import {StakedRewardUiDataProvider} from '../types/StakedRewardUiDataProvider';
 
 export const registerContractInJsonDb = async (contractId: string, contractInstance: Contract) => {
   const currentNetwork = DRE.network.name;
@@ -87,6 +88,17 @@ const deployContract = async <ContractType extends Contract>(
   await waitForTx(contract.deployTransaction);
   await registerContractInJsonDb(<eContractid>contractName, contract);
   return contract;
+};
+
+export const deployStakedRewardUiDataProvider = async (staked:string, dividend:string, verify?: boolean) => {
+  const id = eContractid.StakedRewardUiDataProvider;
+  const args: string[] = [staked, dividend];
+  const instance = await deployContract<StakedRewardUiDataProvider>(id, args);
+  await instance.deployTransaction.wait();
+  if (verify) {
+    await verifyContract(id, instance.address, args);
+  }
+  return instance;
 };
 
 export const deployStakedDividendTracker = async (caller:string, rewardToken:string, verify?: boolean) => {
@@ -211,6 +223,13 @@ export const getMockOracleToken = async (address?: tEthereumAddress) => {
   return await getContract<MockBibOracle>(
     eContractid.MockBibOracle,
     address || (await getDb().get(`${eContractid.MockBibOracle}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getStakedRewardUiDataProvider= async (address?: tEthereumAddress) => {
+  return await getContract<StakedRewardUiDataProvider>(
+    eContractid.StakedRewardUiDataProvider,
+    address || (await getDb().get(`${eContractid.StakedRewardUiDataProvider}.${DRE.network.name}`).value()).address
   );
 };
 

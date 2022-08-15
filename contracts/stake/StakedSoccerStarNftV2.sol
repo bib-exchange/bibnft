@@ -33,6 +33,7 @@ contract StakedSoccerStarNftV2 is
   using SafeCast for uint;
 
   uint256 public constant REVISION = 0x1;
+  bool public _paused;
 
   ISoccerStarNft public STAKED_TOKEN;
   IERC20 public REWARD_TOKEN;
@@ -67,11 +68,23 @@ contract StakedSoccerStarNftV2 is
     REWARD_TOKEN = rewardToken;
     REWARDS_VAULT = rewardsVault;
 
-
     // set owner
     _owner = msg.sender;
 
     setDistributionDuration(distributionDuration);
+  }
+
+  modifier onlyWhenNotPaused {
+      require(!_paused, "PAUSED");
+      _;
+  }
+
+  function puase() public onlyOwner {
+      _paused = true;
+  }
+
+  function unpause() public onlyOwner{
+      _paused = false;
   }
 
   function setStakedToken(address _newValue) public onlyOwner{
@@ -129,7 +142,7 @@ contract StakedSoccerStarNftV2 is
       return cardInfo.gradient.exp(cardInfo.starLevel.sub(1));
   }
 
-  function stake(uint tokenId) external override {
+  function stake(uint tokenId) external override onlyWhenNotPaused{
     require(isOwner(tokenId, msg.sender), "NOT_TOKEN_OWNER");
 
     // delegate token to this contract
@@ -167,7 +180,7 @@ contract StakedSoccerStarNftV2 is
    * @dev Redeems staked tokens, and stop earning rewards
    * @param tokenId token to redeem to
    **/
-  function redeem(uint tokenId) external override {
+  function redeem(uint tokenId) external override onlyWhenNotPaused{
     require(isStaked(tokenId), "TOKEN_NOT_SATKED");
     require(getTokenOwner(tokenId) == msg.sender, "NOT_TOKEN_OWNER");
 
@@ -191,7 +204,7 @@ contract StakedSoccerStarNftV2 is
   }
 
   // user withdraw the spcified token
-  function withdraw(uint tokenId) public override {
+  function withdraw(uint tokenId) public override onlyWhenNotPaused{
     require(getTokenOwner(tokenId) == msg.sender, "NOT_TOKEN_OWNER");
     require(isWithdrawAble(tokenId), "NOT_WITHDRAWABLE");
 
@@ -228,7 +241,7 @@ contract StakedSoccerStarNftV2 is
   /**
    * @dev Claims reward to the specific token
    **/
-  function claimRewards() external override {
+  function claimRewards() external override onlyWhenNotPaused{
     uint unclaimedRewards = 0;
     uint[] storage tokenIds = userStakedTokenTb[msg.sender];
     for(uint i = 0; i < tokenIds.length; i++){
@@ -325,5 +338,4 @@ contract StakedSoccerStarNftV2 is
   function getRevision() internal pure override returns (uint256) {
     return REVISION;
   }
-
 }

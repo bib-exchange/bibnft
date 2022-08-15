@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "../deps/Ownable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeCast} from "../lib/SafeCast.sol";
@@ -18,6 +19,7 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft,
 Ownable, VersionedInitializable {
     using SafeMath for uint;
 
+    bool public _paused;
     uint constant public VERSION = 0x01;
 
     address constant public BLOCK_HOLE = address(0x0000000000000000000000000000000000000001);
@@ -60,6 +62,19 @@ Ownable, VersionedInitializable {
 
         // set owner
         _owner = msg.sender;
+    }
+
+    modifier onlyWhenNotPaused {
+        require(!_paused, "PAUSED");
+        _;
+    }
+
+    function puase() public onlyOwner {
+        _paused = true;
+    }
+
+    function unpause() public onlyOwner{
+        _paused = false;
     }
 
     function getRevision() internal pure override returns (uint256){
@@ -109,7 +124,7 @@ Ownable, VersionedInitializable {
     ComposeMode mode, 
     uint extralToken, 
     PayMethod payMethod
-    ) public override{
+    ) public override onlyWhenNotPaused{
         require(4 == tokenIds.length, "NEED_FOUR_TOKENS");
         require(validToken(tokenIds[0], tokenIds), "NEED_SAME_TOKEN_PROPER");
         require(validStarLevel(tokenIds[0]), "NEED_LOWER_STARLEVEL");

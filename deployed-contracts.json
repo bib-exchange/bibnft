@@ -1,121 +1,79 @@
 {
   "SoccerStarNft": {
-    "hardhat": {
-      "address": "0x8858eeB3DfffA017D4BCE9801D340D36Cf895CCf",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
     "bsc_test": {
-      "address": "0x4075DB7FF6D9F8d441C2cf6b3571CDC7744A5162",
+      "address": "0x366d61BD04100929f16b0FF957E5e4B68Bf1F314",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "SoccerStarNftImpl": {
-    "hardhat": {
-      "address": "0x7c2C195CD6D34B8F845992d380aADB2730bB9C6F",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
     "bsc_test": {
-      "address": "0xD3e116bBacb50993E5532Ed8cad829905FD0422d",
+      "address": "0xfee74085e3CBa148Cbe6238E111406721eEd3DEb",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "InitializableAdminUpgradeabilityProxy": {
-    "hardhat": {
-      "address": "0xD6C850aeBFDC46D7F4c207e445cC0d6B0919BDBe",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
     "bsc_test": {
-      "address": "0x3Ab6ff50253f2B3F7283EBFCB53006F4A7429464",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
-    }
-  },
-  "StakedSoccerStarNftV2": {
-    "hardhat": {
-      "address": "0x1A1FEe7EeD918BD762173e4dc5EfDB8a78C924A8",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
-    "bsc_test": {
-      "address": "0x21F252fcDa46f807c4DCe8012625814DD4b2d7d1",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
-    }
-  },
-  "StakedSoccerStarNftV2Impl": {
-    "hardhat": {
-      "address": "0x038B86d9d8FAFdd0a02ebd1A476432877b0107C8",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
-    "bsc_test": {
-      "address": "0x1e12ef20a47ED4B2a504e5c58003E07aC62fF55a",
+      "address": "0xE978b26D61475ff53C7556743B874d0BdBac2317",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "ComposedSoccerStarNft": {
-    "hardhat": {
-      "address": "0xf4e77E5Da47AC3125140c470c71cBca77B5c638c",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
     "bsc_test": {
-      "address": "0x58f107D555690c5ea5aAaDFA74b3EC4F2fF11Bd4",
+      "address": "0x011f3489CE551aD6B8be4997264Ae830263930A6",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "ComposedSoccerStarNftImpl": {
-    "hardhat": {
-      "address": "0x0078371BDeDE8aAc7DeBfFf451B74c5EDB385Af7",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
     "bsc_test": {
-      "address": "0xf3379BA34d103fA3d814C3712F9daE2f14Bd5d4b",
+      "address": "0x0eCC2A1EE68A526DAFC61a9B461E4b96a55E7cDB",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "SoccerStarNftMarket": {
-    "hardhat": {
-      "address": "0x3619DbE27d7c1e7E91aA738697Ae7Bc5FC3eACA5",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
     "bsc_test": {
-      "address": "0xb47689184c4726008404e7B6aE3ff426C45c34bb",
+      "address": "0x83506FdBc79a19112FE796954bc8dEbC156456ec",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "SoccerStarNftMarketImpl": {
-    "hardhat": {
-      "address": "0xf784709d2317D872237C4bC22f867d1BAe2913AB",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
     "bsc_test": {
-      "address": "0xd57Dc914Db3485df93689C1621C84e5C7c2E002f",
+      "address": "0xe7694f38Fbd4f7c1E406e4eAaB6F395D405A40bE",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "StakedSoccerStarNftV2": {
+    "bsc_test": {
+      "address": "0x06495CE1b2C0D6A030803a1Cd057D69A6e265b05",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "StakedSoccerStarNftV2Impl": {
+    "bsc_test": {
+      "address": "0x1FF2aC1579705827c73CAA29f842084D764bE5d8",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "StakedDividendTracker": {
-    "hardhat": {
-      "address": "0x500D1d6A4c7D8Ae28240b47c8FCde034D827fD5e",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
     "bsc_test": {
-      "address": "0x977A8C4648b9fe9162AB2447C376A04CFF7e2408",
+      "address": "0x66cCe61c399F66179f2beDa95b4D137013F668BB",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "FeeCollector": {
-    "hardhat": {
-      "address": "0xD6C850aeBFDC46D7F4c207e445cC0d6B0919BDBe",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
     "bsc_test": {
-      "address": "0x3Ab6ff50253f2B3F7283EBFCB53006F4A7429464",
+      "address": "0xE978b26D61475ff53C7556743B874d0BdBac2317",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "FeeCollectorImpl": {
-    "hardhat": {
-      "address": "0xc4905364b78a742ccce7B890A89514061E47068D",
-      "deployer": "0xc783df8a850f42e7F7e57013759C285caa701eB6"
-    },
     "bsc_test": {
-      "address": "0x920196cd00db9d6E2fEeB4B21Be5E0fe62A322B0",
+      "address": "0x7Ee638c5925dad13b12a86FFD9C8c9fCe3E93B69",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "StakedRewardUiDataProvider": {
+    "bsc_test": {
+      "address": "0xcE15e71B8F460798bfBf21F55AAfA59E1e0070e6",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   }

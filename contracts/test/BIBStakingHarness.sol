@@ -1,7 +1,7 @@
 
 pragma solidity ^0.8.9;
 
-import "../BIBStaking.sol";
+import "../community/BIBStaking.sol";
 
 contract BIBStakingHarness is BIBStaking {
 

@@ -12,7 +12,8 @@ import {
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
-  MAX_NFT_QUOTA,
+  MIN_BUSD_SWAP_THRESHOLD,
+  MIN_BNB_SWAP_THRESHOLD,
   getBIBTokenPerNetwork,
   getBUSDTokenPerNetwork,
   getMockOraclePerNetwork,
@@ -31,7 +32,6 @@ const {
 task(`initialize-dividend`, `Initialize dividend contracts`)
   .setAction(async ({}, localBRE) => {
     await localBRE.run('set-dre');
-
 
     if (!localBRE.network.config.chainId) {
       throw new Error('INVALID_CHAIN_ID');
@@ -67,15 +67,41 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
       )
     );
 
-    console.log(`\tbind ${StakedDividendTracker} tracker to ${StakedSoccerStarNftV2}`);
-    const stakedSoccerStarNftV2 = await getStakedSoccerStarNftV2();
+    // config swap thresh hold
+    console.log(`\tConfig ${FeeCollector} thresholds`);
     await waitForTx(
-        await stakedSoccerStarNftV2.setBalanceHook(stakeDividendTracker.address));
+      await feeCollector.setSwapThreshHold(
+        MIN_BUSD_SWAP_THRESHOLD,
+        MIN_BNB_SWAP_THRESHOLD
+      )
+    );
+
+    // set staken receiver
+    console.log(`\tset ${FeeCollector} fee receiver to ${StakedDividendTracker}`);
+    await waitForTx(
+      await feeCollector.setFeeReceiver(
+        stakeDividendTracker.address,
+        ZERO_ADDRESS, // TODO: replace with final addresses
+        ZERO_ADDRESS // TODO: replace with final addresses
+        ));
+  
+    // brige market and staken 
+    console.log(`\tset ${StakedDividendTracker} fee sender to ${FeeCollector}`);
+    await waitForTx(
+      await stakeDividendTracker.setFeeSender(feeCollector.address));
 
     console.log(`\tbind ${FeeCollector}  to ${SoccerStarNftMarket}`);
     const soccerStarNftMarket = await getSoccerStarNftMarket();
     await waitForTx(
-        await soccerStarNftMarket.setFeeCollector(feeCollector.address));
-    
+      await soccerStarNftMarket.setFeeCollector(feeCollector.address));
+
+    // add market to allow caller list
+    console.log(`\tadd ${SoccerStarNftMarket} to ${FeeCollector} as allow caller`);
+    await waitForTx(
+      await feeCollector.setAllowCall(
+        soccerStarNftMarket.address,
+        true
+        ));
+
     console.log(`\tFinished dividend proxy initialize`);
   });
