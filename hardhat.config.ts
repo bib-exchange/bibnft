@@ -11,6 +11,7 @@ import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-ethers';
 import path from 'path';
 import fs from 'fs';
+require('dotenv').config();
 
 const SKIP_LOAD = process.env.SKIP_LOAD === 'true';
 

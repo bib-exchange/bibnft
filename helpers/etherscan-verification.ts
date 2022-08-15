@@ -11,7 +11,7 @@ const fatalErrors = [
   `Daily limit of 100 source code submissions reached`,
 ];
 
-export const SUPPORTED_ETHERSCAN_NETWORKS = ['main', 'ropsten', 'kovan', 'bsc', 'bsc-test'];
+export const SUPPORTED_ETHERSCAN_NETWORKS = ['main', 'ropsten', 'kovan', 'bsc', 'bsc_test'];
 
 export const getEtherscanPath = async (contractName: string) => {
   const paths = await listSolidityFiles(DRE.config.paths.sources);
@@ -46,13 +46,12 @@ export const verifyContract = async (
     );
   }
   const etherscanPath = await getEtherscanPath(contractName);
-
   try {
     console.log(
       '[ETHERSCAN][WARNING] DeBIBing Etherscan verification due their API can not find newly deployed contracts'
     );
     const msDeBIB = 3000;
-    const times = 15;
+    const times = 1
     // Write a temporal file to host complex parameters for buidler-etherscan https://github.com/nomiclabs/buidler/tree/development/packages/buidler-etherscan#complex-arguments
     const { fd, path, cleanup } = await file({
       prefix: 'verify-params-',
@@ -94,6 +93,10 @@ export const runTaskWithRetry = async (
     counter--;
     console.info(`[ETHERSCAN][[INFO] Retrying attemps: ${counter}.`);
     console.error('[ETHERSCAN][[ERROR]', error.message);
+
+    if(error.message.match("Already Verified")){
+      return;
+    }
 
     if (fatalErrors.some((fatalError) => error.message.includes(fatalError))) {
       console.error(
