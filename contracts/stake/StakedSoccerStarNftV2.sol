@@ -17,6 +17,8 @@ import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeERC20} from "../lib/SafeERC20.sol";
 import {IERC20} from "../interfaces/IERC20.sol";
 import {IBalanceHook} from "../interfaces/IBalanceHook.sol";
+import {IBIBNode} from "../interfaces/IBIBNode.sol";
+
 
 /**
  * @title StakedToken
@@ -38,13 +40,14 @@ contract StakedSoccerStarNftV2 is
   ISoccerStarNft public STAKED_TOKEN;
   IERC20 public REWARD_TOKEN;
   IBalanceHook public balanceHook;
+  IBIBNode public NODE;
 
   event StakedTokenChanged(address sender, address oldValue, address newValue);
   event RewardTokenChanged(address sender, address oldValue, address newValue);
   event RewardVaultChanged(address sender, address oldValue, address newValue);
   event BalanceHookChanged(address sender, address oldValue, address newValue);
   event CoolDownDurationChanged(address sender, address oldValue, address newValue);
-
+  event TransferOwnershipNFT(address sender, uint tokenId, address owner, address to);
 
   /// @notice Address to pull from the rewards, needs to have approved this contract
   address public REWARDS_VAULT;
@@ -63,6 +66,7 @@ contract StakedSoccerStarNftV2 is
   mapping(address=>bool) public allowProtocolToCallTb;
 
   function initialize(
+    IBIBNode _node,
     ISoccerStarNft stakedToken,
     IERC20 rewardToken,
     address rewardsVault,
@@ -71,6 +75,7 @@ contract StakedSoccerStarNftV2 is
     STAKED_TOKEN = stakedToken;
     REWARD_TOKEN = rewardToken;
     REWARDS_VAULT = rewardsVault;
+    NODE = _node;
 
     // set owner
     _owner = msg.sender;
@@ -209,6 +214,9 @@ contract StakedSoccerStarNftV2 is
     require(isStaked(tokenId), "TOKEN_NOT_SATKED");
     require(getTokenOwner(tokenId) == msg.sender, "NOT_TOKEN_OWNER");
 
+    // can't allow reddem if the nft is stake as a node
+    require(!NODE.isStakedAsNode(tokenId), "TOKEN_STAKED_AS_NODE");
+    
     uint power = getTokenPower(tokenId);
 
     uint unclaimedRewards = _updateCurrentUnclaimedRewards(tokenId, power);
@@ -264,21 +272,68 @@ contract StakedSoccerStarNftV2 is
     emit Withdraw(msg.sender, tokenId);
   }
 
+  function transferOwnershipNFT(uint tokenId, address to) 
+  public onlyAllowProtocolToCall {
+    require(isStaked(tokenId), "TOKEN_NOT_STAKED");
+    address owner = tokenStakedInfoTb[tokenId].owner;
+    require(owner != to, "SAME_OWER");
+
+    // transfer ownership
+    tokenStakedInfoTb[tokenId].owner = to;
+
+    // update old user token table
+    uint[] storage tokenIds = userStakedTokenTb[owner];
+    uint indexToRm = tokenIds.length;
+    for(uint i = 0; i < tokenIds.length; i++){
+      if(tokenIds[i] == tokenId){
+          indexToRm = i;
+          break;
+      }
+    }
+    require(indexToRm < tokenIds.length, "TOKEN_NOT_EXIST");
+    for(uint i = indexToRm; i < tokenIds.length - 1; i++){
+      tokenIds[i] = tokenIds[i+1];
+    }
+    tokenIds.pop();
+    // update new user token table
+    userStakedTokenTb[owner].push(tokenId);
+
+    // update user power table
+    ISoccerStarNft.SoccerStar memory cardInfo = 
+    ISoccerStarNft(address(STAKED_TOKEN)).getCardProperty(tokenId);
+    uint power = caculatePower(cardInfo.gradient, cardInfo.starLevel);
+    userTotalPower[owner] -= power;
+    userTotalPower[to] += power;
+
+    // TODO: need to transfer staken rewards?
+
+    // update dvidend share
+    if(address(0) != address(balanceHook)){
+      balanceHook.hookBalanceChange(owner, tokenId, 0);
+      balanceHook.hookBalanceChange(to, tokenId, power);
+    }
+      
+    emit TransferOwnershipNFT(msg.sender, tokenId, owner, to);
+  }
+
   function updateStarlevel(uint tokenId, uint starLevel) 
     public onlyAllowProtocolToCall {
       require(isStaked(tokenId), "TOKEN_NOT_STAKED");
 
-      ISoccerStarNft.SoccerStar memory cardInfo = ISoccerStarNft(address(STAKED_TOKEN)).getCardProperty(tokenId);
-      require(cardInfo.starLevel > 0, "CARD_UNREAL");
+      address owner = tokenStakedInfoTb[tokenId].owner;
 
-      // recaculate token power
-      uint power = caculatePower(cardInfo.gradient, starLevel);
+      // redeem unclaimed reward
+      uint unclaimedRewards = getUnClaimedRewardsByToken(tokenId);
+      REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, owner, unclaimedRewards);
+      emit ClaimReward(owner, tokenId, unclaimedRewards);
 
       // update nft property
       ISoccerStarNft(address(STAKED_TOKEN)).updateStarlevel(tokenId, starLevel);
 
       // update power
-      address owner = tokenStakedInfoTb[tokenId].owner;
+      ISoccerStarNft.SoccerStar memory cardInfo = 
+        ISoccerStarNft(address(STAKED_TOKEN)).getCardProperty(tokenId);
+      uint power = caculatePower(cardInfo.gradient, starLevel);
       uint oldPower = userTotalPower[owner];
       userTotalPower[owner] = power;
       if(power > oldPower){
@@ -289,7 +344,7 @@ contract StakedSoccerStarNftV2 is
 
       // record extra dividend
       if(address(0) != address(balanceHook)){
-        balanceHook.hookBalanceChange(msg.sender, tokenId, userTotalPower[msg.sender]);
+        balanceHook.hookBalanceChange(msg.sender, tokenId, power);
       }
     }
     

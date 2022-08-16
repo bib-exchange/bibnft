@@ -9,7 +9,8 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC20/IERC20Upgradeable.sol";
 import "../interfaces/IBIBStaking.sol";
-import "../interfaces/IStakedSoccerStarNft.sol";
+import "../interfaces/ISoccerStarNft.sol";
+import "../interfaces/IStakedSoccerStarNftV2.sol";
 
 contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
     using SafeMath for uint256;
@@ -27,23 +28,24 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
     }
 
     string public baseURI;
-    // 球星卡质押合约地址
-    IStakedSoccerStarNft public cardNFTStake;
+    IStakedSoccerStarNftV2 public cardNFTStake;
     IBIBStaking public BIBStaking;
-    // BIB token 合约地址
     IERC20Upgradeable public BIBToken;
     ERC721Upgradeable public soccerStarNft;
-    // 节点凭证 NFT id => 节点详情
+    // node ticket id -> node detail
     mapping(uint256 => Node) public nodeMap;
-    // 节点数组，存放节点凭证id
+    // node ticket id list
     uint256[] public nodeList;
-    // 用户地址 -> 节点凭证 NFT id
+    // user address -> node ticket id
     mapping(address => uint256) public ticketMap;
-    // 球星卡 -> 用户地址
+    // card nft -> user
     mapping(uint256 => address) public cardNFTOwners;
 
     mapping(address => CardNFTFreeze) public cardNFTFreezeMap;
-    mapping(uint256 => uint256[]) public subNodes; // 数量最多10个
+    mapping(uint256 => uint256[]) public subNodes; 
+    uint256 public constant maxSubNodeCount = 10;
+
+    address public constant BLACK_HOLE = address(0x0000000000000000000000000000000000000001);
 
     event CreateNode(
         address indexed user,
@@ -54,7 +56,8 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
 
     event UpgradeNode(
         address indexed user,
-        uint256 indexed cardNFTId
+        uint256 indexed cardNFTId,
+        uint256 starLevel
     );
 
     event DisbandNode(
@@ -74,15 +77,14 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         uint256 indexed ticketId,
         uint256 bibAmount
     );
-    
-    // 1. 创建和升级点时，需要转入用户球星卡，所以要提前将多张球星卡授权给该合约
-    // 2. 升级球星卡，该方法应该在球星卡合约中，需要销毁旧卡
-    // 3. 需要获取球星卡等级的接口。
-    // 4. 
+
     function initialize(
-        address _cardNFTStake, address _soccerStarNft, address _bibToken, address _bibStaking
+        address _cardNFTStake, 
+        address _soccerStarNft, 
+        address _bibToken, 
+        address _bibStaking
         ) initializer public {
-        cardNFTStake = IStakedSoccerStarNft(_cardNFTStake);
+        cardNFTStake = IStakedSoccerStarNftV2(_cardNFTStake);
         soccerStarNft = ERC721Upgradeable(_soccerStarNft);
         BIBToken = IERC20Upgradeable(_bibToken);
         BIBStaking = IBIBStaking(_bibStaking);
@@ -90,19 +92,18 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         __Pausable_init();
         __Ownable_init();
     }
+
+    function isStakedAsNode(uint tokenId) external view returns(bool){
+        return (address(0) != cardNFTOwners[tokenId]);
+    }
      
     function createNode(uint256 _cardNFTId, uint256 _bibAmount, uint256 ticket) external {
-        // 0. 判断调用者是否已经拥有节点
-        // 1. 用户BIB资金冻结，冻结前检查用户可用余额
-        // 2. 转入球星卡
-        // 3. mint 节点凭证 NFT
         require(cardNFTStake.isStaked(_cardNFTId), "Card must be staked");
         address operator = _msgSender();
-        // require(soccerStarNft.ownerOf(_cardNFTId) == operator, "NFT is not yours");
+        require(cardNFTStake.getTokenOwner(_cardNFTId) == operator, "NFT is not yours");
         require(balanceOf(operator) == 0, "Already have node");
         require(cardNFTOwners[_cardNFTId] == address(0), "Already registered");
         require(nodeMap[ticket].ownerAddress == address(0), "ticket is used");
-        // TODO:: transfer card nft
         cardNFTOwners[_cardNFTId] = operator;
         Node storage node = nodeMap[ticket];
         node.ownerAddress = operator;
@@ -114,6 +115,31 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         BIBStaking.createNode(operator, ticket, _bibAmount);
         emit CreateNode(operator, _cardNFTId, _bibAmount, ticket);
     }
+
+    function cmpProperty (
+    ISoccerStarNft.SoccerStar memory a, 
+    ISoccerStarNft.SoccerStar memory b) internal pure returns(bool){
+        return keccak256(bytes(a.name)) == keccak256(bytes(b.name))
+        && keccak256(bytes(a.country)) == keccak256(bytes(b.country))
+        && keccak256(bytes(a.position)) == keccak256(bytes(b.position))
+        && a.gradient == b.gradient;
+    }
+
+    function validToken(uint base, uint[] memory tokensToValid) 
+    internal view returns(bool){
+        if(0 == tokensToValid.length){
+            return false;
+        }
+
+        ISoccerStarNft tokenContract = ISoccerStarNft(address(soccerStarNft));
+        ISoccerStarNft.SoccerStar memory baseProperty = tokenContract.getCardProperty(base);
+        for(uint i = 0; i < tokensToValid.length; i++){
+            if(!cmpProperty(baseProperty, tokenContract.getCardProperty(tokensToValid[i]))){
+                return false;
+            }
+        }
+        return true;
+    }
     
     function upgradeNode(uint256[] calldata _cardNFTIds) external {
         address operator = _msgSender();
@@ -121,24 +147,30 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         Node storage node = nodeMap[_ticket];
         require(node.createTime > 0, "You don't have node.");
         uint256 _cardNFTId = getCardNFTByAddress(operator);
-        uint256 newCardNFTId = _ticket;
-        // TODO:: 销毁球星卡并生成新的球星卡
-        node.cardNftId = newCardNFTId;
-        delete cardNFTOwners[_cardNFTId];
-        cardNFTOwners[newCardNFTId] = operator;
-        emit UpgradeNode(operator, newCardNFTId);
+
+        ISoccerStarNft.SoccerStar memory cardInfo = ISoccerStarNft(address(soccerStarNft)).getCardProperty(_cardNFTId);
+        require(cardInfo.starLevel == 3, "ONLY_STARLEVEL_THREE");
+        cardNFTStake.updateStarlevel(_cardNFTId, (cardInfo.starLevel + 1));
+
+        // need the other 4 tokens share the same property
+        require(_cardNFTIds.length == 4, "NEED_FOUR_TOKENS");
+        require(validToken(_cardNFTId, _cardNFTIds), "NEED_SAME_TOKEN_PROPERTY");
+
+        // burn all
+        for(uint i = 0; i < _cardNFTIds.length; i++){
+            soccerStarNft.transferFrom(msg.sender, BLACK_HOLE, _cardNFTIds[i]);
+        }
+
+        emit UpgradeNode(operator, _cardNFTId, (cardInfo.starLevel + 1));
     }
     
     function disbandNode() external {
-        // 解散节点
         address operator = _msgSender();
         uint256 _ticket = ticketMap[operator];
         Node storage node = nodeMap[_ticket];
         require(node.createTime > 0, "You don't have node.");
         uint256 _cardNFTId = getCardNFTByAddress(operator);
-        // TODO：解除下级节点委托
         // TODO: 球星卡冻结7天
-        // TODO: 代币冻结7天
         _burn(_ticket);
         delete ticketMap[operator];
         BIBStaking.disbandNode(operator, _ticket);
@@ -151,6 +183,7 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
                 break;
             }
         }
+        delete cardNFTOwners[_cardNFTId];
         emit DisbandNode(operator, _cardNFTId, _ticket);
     }
 
@@ -166,7 +199,7 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
 
     function stakeNode(uint256 _ticket) public returns(bool) {
         require(nodeMap[_ticket].createTime > 0, "Node not exist");
-        require(subNodes[_ticket].length < 10, "Node is full");
+        require(subNodes[_ticket].length < maxSubNodeCount, "Node is full");
         address operator = _msgSender();
         uint256 fromTicket = ticketMap[operator];
         require(fromTicket != _ticket, "Cann't stake yourself");
@@ -186,6 +219,7 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         uint256 fromTicket = ticketMap[operator];
         Node storage fromNode = nodeMap[fromTicket];
         require(fromNode.createTime > 0, "You don't have node.");
+        require(fromNode.upNode == _ticket, "Not your up node");
 
         uint256 index = subNodes[_ticket].length;
         while(index > 0) {
@@ -202,7 +236,6 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         return true;
     }
     
-    // 转让节点凭证
     function _transfer(
         address from,
         address to,
@@ -213,6 +246,20 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         nodeMap[tokenId].ownerAddress = to;
         super._transfer(from, to, tokenId);
         BIBStaking.transferNodeSetUp(from, to, tokenId);
+
+        // transfer staken ownership
+        uint256 _cardNFTId = getCardNFTByAddress(from);
+        cardNFTStake.transferOwnershipNFT(_cardNFTId, to);
+    }
+
+    function setCardNftStake(address _cardNftStake) external onlyOwner {
+        require(_cardNftStake != address(0), 'Invalid address');
+        cardNFTStake = IStakedSoccerStarNftV2(_cardNftStake);
+    }
+
+    function setCardNft(address _cardNft) external onlyOwner {
+        require(_cardNft != address(0), 'Invalid address');
+        soccerStarNft = ERC721Upgradeable(_cardNft);
     }
 
     function setBaseURI(string memory uri) external onlyOwner {
@@ -226,8 +273,6 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
     function _baseURI() internal view override returns (string memory) {
         return baseURI;
     }
-
-    // TODO: 用户年化收益计算，用户在某个节点的待领取收益
 
     /**
      * @dev See {ERC721-_mint}.

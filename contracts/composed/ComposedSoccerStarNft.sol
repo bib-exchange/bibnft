@@ -22,7 +22,7 @@ Ownable, VersionedInitializable {
     bool public _paused;
     uint constant public VERSION = 0x01;
 
-    address constant public BLOCK_HOLE = address(0x0000000000000000000000000000000000000001);
+    address constant public BLACK_HOLE = address(0x0000000000000000000000000000000000000001);
    
     ISoccerStarNft public tokenContract;
     IERC20 public bibContract;
@@ -149,7 +149,7 @@ Ownable, VersionedInitializable {
 
         // burn all
         for(uint i = 0; i < tokenIds.length; i++){
-            IERC721(address(tokenContract)).transferFrom(msg.sender, BLOCK_HOLE, tokenIds[i]);
+            IERC721(address(tokenContract)).transferFrom(msg.sender, BLACK_HOLE, tokenIds[i]);
         }
 
         // compose new
@@ -159,13 +159,13 @@ Ownable, VersionedInitializable {
         if(ComposeMode.COMPOSE_NORMAL == mode) {
             require(msg.sender == IERC721(address(tokenContract)).ownerOf(extralToken), "TOKEN_NOT_BELLOW_TO_SENDER");
             // burn the extral
-            IERC721(address(tokenContract)).transferFrom(msg.sender, BLOCK_HOLE, extralToken);
+            IERC721(address(tokenContract)).transferFrom(msg.sender, BLACK_HOLE, extralToken);
         } else {
             require(isActivityOpen(), "ACTIVITY_IS_NOT_OPENED");
             
             payAmount = caculateBurnAmount(soccerStar.starLevel, soccerStar.gradient);
             if(PayMethod.PAY_BIB == payMethod){
-                bibContract.transferFrom(msg.sender, BLOCK_HOLE, payAmount);
+                bibContract.transferFrom(msg.sender, BLACK_HOLE, payAmount);
             } else {
                 payAmount = caculateBUSDAmount(payAmount);
                 busdContract.transferFrom(msg.sender, treasury, payAmount);
