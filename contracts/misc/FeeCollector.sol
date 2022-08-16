@@ -18,7 +18,7 @@ contract FeeCollector is Ownable,VersionedInitializable {
     uint totalBUSDRecieved;
     uint totalBIBRecieved;
 
-    mapping(address=>bool) public allowCall;
+    mapping(address=>bool) public allowToCall;
 
     uint public constant VERSION = 0x01;
     uint public vaultRatio = 150;
@@ -129,16 +129,16 @@ contract FeeCollector is Ownable,VersionedInitializable {
         uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
     }
 
-    function setAllowCall(address caller, bool value) public onlyOwner{
-        allowCall[caller] = value;
+    function setAllowToCall(address caller, bool value) public onlyOwner{
+        allowToCall[caller] = value;
     }
 
     function isAllowCall(address caller) public view returns(bool){
-        return allowCall[caller];
+        return allowToCall[caller];
     }
 
     modifier onlyCaller(){
-        require(allowCall[msg.sender], "ONLY_PROTOCOL_ADDRESS_CAN_CALL");
+        require(allowToCall[msg.sender], "ONLY_CALLER");
         _;
     }
 

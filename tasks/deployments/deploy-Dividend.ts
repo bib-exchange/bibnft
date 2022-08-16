@@ -35,15 +35,9 @@ task(`deploy-dividend`, `Deploy dividend contracts`)
     // 1
     console.log(`\n- ${StakedDividendTracker} deployment`);
     console.log(`\tDeploying ${StakedDividendTracker} implementation ...`);
-    const stakedSoccerStarNftV2= await getStakedSoccerStarNftV2();
     const bibToken = await getBIBTokenPerNetwork(network);
-    const stakedDividendTracker = await deployStakedDividendTracker(
-      stakedSoccerStarNftV2.address, bibToken, verify);
+    const stakedDividendTracker = await deployStakedDividendTracker(bibToken, verify);
     await registerContractInJsonDb(StakedDividendTracker, stakedDividendTracker);
-
-    console.log(`\tbind ${StakedDividendTracker} tracker to ${StakedSoccerStarNftV2}`);
-    await waitForTx(
-      await stakedSoccerStarNftV2.setBalanceHook(stakedDividendTracker.address));
 
     // 2
     console.log(`\n- ${FeeCollector} deployment`);

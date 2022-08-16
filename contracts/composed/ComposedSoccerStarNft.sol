@@ -29,6 +29,9 @@ Ownable, VersionedInitializable {
     IERC20 public busdContract;
     IBIBOracle public priceOracle;
 
+    uint public startup;
+    uint public deadline;
+
     // fill with default
     uint[12] public feeRates = [360000,  730000,    1200000, 2200000,
                       1800000, 3650000,   6000000, 11000000,
@@ -79,6 +82,18 @@ Ownable, VersionedInitializable {
 
     function getRevision() internal pure override returns (uint256){
         return VERSION;
+    }
+
+    function setSpeedupTimeline(uint _startup, uint _deadline) public onlyOwner{
+        require(_startup > block.timestamp, "STARTUP_TOO_EARLY");
+        require(_deadline > _startup, "INVALID_DEADLINE");
+
+        startup = _startup;
+        deadline = _deadline;
+    }
+
+    function isActivityOpen() public view returns(bool){
+        return block.timestamp >= startup && block.timestamp < deadline;
     }
 
     function setTokenContract(address _tokenContract) public onlyOwner{
@@ -146,6 +161,8 @@ Ownable, VersionedInitializable {
             // burn the extral
             IERC721(address(tokenContract)).transferFrom(msg.sender, BLOCK_HOLE, extralToken);
         } else {
+            require(isActivityOpen(), "ACTIVITY_IS_NOT_OPENED");
+            
             payAmount = caculateBurnAmount(soccerStar.starLevel, soccerStar.gradient);
             if(PayMethod.PAY_BIB == payMethod){
                 bibContract.transferFrom(msg.sender, BLOCK_HOLE, payAmount);

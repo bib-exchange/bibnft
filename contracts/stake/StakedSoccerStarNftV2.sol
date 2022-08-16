@@ -37,7 +37,7 @@ contract StakedSoccerStarNftV2 is
 
   ISoccerStarNft public STAKED_TOKEN;
   IERC20 public REWARD_TOKEN;
-  IBalanceHook balanceHook;
+  IBalanceHook public balanceHook;
 
   event StakedTokenChanged(address sender, address oldValue, address newValue);
   event RewardTokenChanged(address sender, address oldValue, address newValue);
@@ -153,6 +153,7 @@ contract StakedSoccerStarNftV2 is
 
     uint power = getTokenPower(tokenId);
     totalPower += power;
+    totalStaked++;
     userTotalPower[msg.sender] += power;
 
     tokenStakedInfoTb[tokenId] = TokenStakedInfo({
@@ -168,7 +169,7 @@ contract StakedSoccerStarNftV2 is
 
     // record extra dividend
     if(address(0) != address(balanceHook)){
-      balanceHook.hookBalanceChange(msg.sender, userTotalPower[msg.sender]);
+      balanceHook.hookBalanceChange(msg.sender, tokenId, power);
     }
   }
 
@@ -190,6 +191,7 @@ contract StakedSoccerStarNftV2 is
 
     // deducate the power
     totalPower -= power;
+    totalStaked--;
     userTotalPower[msg.sender] -= power;
 
     tokenStakedInfoTb[tokenId].cooldown = block.timestamp;
@@ -199,7 +201,7 @@ contract StakedSoccerStarNftV2 is
 
     // record extra dividend
     if(address(0) != address(balanceHook)){
-      balanceHook.hookBalanceChange(msg.sender, userTotalPower[msg.sender]);
+      balanceHook.hookBalanceChange(msg.sender, tokenId, 0);
     }
   }
 

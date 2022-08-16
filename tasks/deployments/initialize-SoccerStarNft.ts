@@ -12,7 +12,7 @@ import { ZERO_ADDRESS,
   MAX_NFT_QUOTA,
   getBIBTokenPerNetwork,
   getBUSDTokenPerNetwork,
-  getMockOraclePerNetwork,
+  getSwapRoterPerNetwork,
   getTreasuryPerNetwork,
   getBIBAdminPerNetwork
  } from '../../helpers/constants';
@@ -22,7 +22,6 @@ const { SoccerStarNft } = eContractid;
 task(`initialize-${SoccerStarNft}`, `Initialize the ${SoccerStarNft} proxy contract`)
   .setAction(async ({}, localBRE) => {
     await localBRE.run('set-dre');
-
 
     if (!localBRE.network.config.chainId) {
       throw new Error('INVALID_CHAIN_ID');
@@ -46,7 +45,7 @@ task(`initialize-${SoccerStarNft}`, `Initialize the ${SoccerStarNft} proxy contr
       await getBIBTokenPerNetwork(network),
       await getBUSDTokenPerNetwork(network),
       await getTreasuryPerNetwork(network),
-      await getMockOraclePerNetwork(network) // TODO: replace with DEX SWATP
+      await getSwapRoterPerNetwork(network)
     ]);
 
     await waitForTx(

@@ -13,6 +13,7 @@ import "../deps/Ownable.sol";
 import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
+import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 
 contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializable {
     using Strings for uint;
@@ -22,7 +23,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     
     IERC20 public bibContract;
     IERC20 public busdContract;
-    IBIBOracle public priceOracle;
+    IUniswapV2Router02 public router;
 
     //URI of the NFTs when revealed
     string public baseURI;
@@ -54,7 +55,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     event BIBContractChanged(address sender, address oldValue, address newValue);
     event BUSDContractChanged(address sender, address oldValue, address newValue);
     event TreasuryChanged(address sender, address oldValue, address newValue);
-    event PriceOracleChanged(address sender, address oldValue, address newValue);
+    event SwapRouterChanged(address sender, address oldValue, address newValue);
     event ComposerChanged(address sender, address oldValue, address newValue);
     event SellTimeChanged(address sender, uint oldValue, uint newValue);
     event Changed(address sender, uint oldValue, uint newValue);
@@ -95,12 +96,12 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     address _bibContract,
     address _busdContract,
     address _treasury,
-    address _priceOracle) public initializer{
+    address _router) public initializer{
         maxMintSupply = _maxMintSupply;
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
         treasury = _treasury;
-        priceOracle = IBIBOracle(_priceOracle);
+        router = IUniswapV2Router02(_router);
 
         // set owner
         _owner = msg.sender;
@@ -143,10 +144,10 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         treasury = _treasury;
     }
 
-    function setPriceOracle(address _priceOracle) public onlyOwner{
-        require(address(0) != _priceOracle, "INVLID_ADDRESS");
-        emit PriceOracleChanged(msg.sender, address(priceOracle), _priceOracle);
-        priceOracle = IBIBOracle(_priceOracle);
+    function setSwapRouter(address _router) public onlyOwner{
+        require(address(0) != _router, "INVLID_ADDRESS");
+        emit SwapRouterChanged(msg.sender, address(router), _router);
+        router = IUniswapV2Router02(_router);
     }
 
     function setBUSDContract(address _busdContract) public onlyOwner{
@@ -157,8 +158,10 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
 
     function caculateBUSDAmount(uint bibAmount) public view returns(uint){
         // the price has ORACLE_PRECISION
-        uint priceDec = priceOracle.getAssetPrice(address(bibContract));
-        return bibAmount.div(ORACLE_PRECISION).mul(priceDec);
+        address[] memory path = new address[](2);
+        path[0] = address(bibContract);
+        path[1] = address(busdContract);
+        return router.getAmountsOut(bibAmount, path)[1];
     }
 
    // only allow protocol related contract to mint
