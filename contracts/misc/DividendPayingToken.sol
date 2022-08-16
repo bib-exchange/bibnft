@@ -38,7 +38,6 @@ abstract contract DividendPayingToken {
   mapping(uint256 => uint256) internal withdrawnDividends;
 
   uint256 public totalDividendsDistributed;
-
   /// It emits the `DividendsDistributed` event if the amount of received ether is greater than 0.
   /// About undistributed ether:
   ///   In each distribution, there is a small amount of ether not distributed,
