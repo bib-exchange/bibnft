@@ -61,5 +61,21 @@ task(`initialize-${StakedSoccerStarNftV2}`, `Initialize the ${StakedSoccerStarNf
       )
     );
 
+    // config emission
+    const rewardEmission:{
+      emissionPerSecond: string,
+      totalPower: string,
+      underlyingAsset: string
+    } = {
+      emissionPerSecond: EMISSION_PER_SECONDS,
+      totalPower: "0",
+      underlyingAsset: stakedSoccerStarNftV2.address
+    };
+    console.log(`configure emission:
+      ${rewardEmission}
+    `);
+    await waitForTx( 
+      await stakedSoccerStarNftV2.configureAssets([rewardEmission]));
+
     console.log(`\tFinished ${StakedSoccerStarNftV2} proxy initialize`);
   });

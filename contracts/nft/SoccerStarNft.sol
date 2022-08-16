@@ -51,6 +51,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     uint constant public PUB_SELL_ROUND5 = 5;
     uint constant public MAX_ROUND = PUB_SELL_ROUND5;
 
+    uint constant public MAX_PROPERTY_VALUE = 4;
+
     event BIBContractChanged(address sender, address oldValue, address newValue);
     event BUSDContractChanged(address sender, address oldValue, address newValue);
     event TreasuryChanged(address sender, address oldValue, address newValue);
@@ -58,8 +60,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     event ComposerChanged(address sender, address oldValue, address newValue);
     event SellTimeChanged(address sender, uint oldValue, uint newValue);
     event Changed(address sender, uint oldValue, uint newValue);
+    event UpdateStarLevel(address sender, uint oldValue, uint newValue);
 
-    address public composer;
     address public treasury;
 
     uint256 public maxPubicsaleUserMintAmount = 10;
@@ -76,6 +78,9 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     mapping(uint=>mapping(BlindBoxesType=>uint)) public mintAmountTb;
     mapping(address=>mapping(uint=>uint))        public mintAmountPerAddrTb;
     mapping(uint=>TimeInfo) public timeInfoTb;
+
+    mapping(address=>bool) public allowProtocolToCallTb;
+    mapping(address=>bool) public allowToCallTb;
 
     struct QuotaTracker {
         uint quota;
@@ -105,9 +110,11 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         // set owner
         _owner = msg.sender;
 
-        // set token info
+        // initialize
         _name = "SoccerStarNft";
         _symbol = "SCSTAR";
+        maxPubicsaleUserMintAmount = 10;
+
         _currentIndex = _startTokenId();
     }
 
@@ -116,18 +123,26 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         _;
     }
 
-    function setComposer(address value) public onlyOwner{
-        require(address(0) != value, "INVALID_ADDRESS");
-        emit ComposerChanged(msg.sender, composer, value);
-        composer = value;
+    function setAllowProtocolToCall(address _protAddr, bool value) public onlyOwner{
+        allowProtocolToCallTb[_protAddr] = value;
     }
 
-    modifier onlyComposer(){
-        require(msg.sender == composer, "NEED_COMPOSER");
+    modifier onlyAllowProtocolToCall() {
+        require(allowProtocolToCallTb[msg.sender], "ONLY_PROTOCOL_CALL");
         _;
     }
 
-    function  getRemainingAmount(uint round, BlindBoxesType boxType) public view returns(uint){
+    function setAllowToCall(address _caller, bool value) public onlyOwner{
+        allowToCallTb[_caller] = value;
+    }
+
+    modifier onlyAllowToCall(){
+          require(allowToCallTb[msg.sender], "ONLY_PERMIT_CALLER");
+        _;
+    }
+
+    function  getRemainingAmount(uint round, BlindBoxesType boxType)
+    public view returns(uint){
         return maxAmountTb[round][boxType].sub(mintAmountTb[round][boxType]);
     }
 
@@ -162,34 +177,47 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     }
 
    // only allow protocol related contract to mint
-    function protocolMint() public override onlyComposer returns(uint tokenId){
+    function protocolMint() public override onlyAllowProtocolToCall returns(uint tokenId){
         tokenId = _currentIndex;
         _mint(msg.sender, 1);
         require(msg.sender == ownerOf(tokenId), "PROTOCOL_MINT_FAILED");
     }
 
     // only allow protocol related contract to mint to burn
-    function protocolBurn(uint tokenId) public onlyComposer override {
+    function protocolBurn(uint tokenId) 
+    public override onlyAllowProtocolToCall {
         require(msg.sender == ownerOf(tokenId), "TOKEN_NOT_BELLONG_TO_CALLER");
         _burn(tokenId);
         require(msg.sender != ownerOf(tokenId), "PROTOCOL_BRUN_FAILED");
     }
 
     // only allow protocol related contract to bind star property
-    function protocolBind(uint tokenId, SoccerStar memory soccerStar) public override onlyComposer{
+    function protocolBind(uint tokenId, SoccerStar memory soccerStar) 
+    public override onlyAllowProtocolToCall {
         require(msg.sender == ownerOf(tokenId), "TOKEN_NOT_BELLONG_TO_CALLER");
         require(cardProperty[tokenId].starLevel == 0, "TOKEN_REVEALED");
         cardProperty[tokenId] = soccerStar;
     }
 
-    function addUserQuotaPreRoundBatch(address[] memory users, uint[] memory quotas) public override onlyOwner {
+    function updateStarlevel(uint tokenId, uint starLevel) 
+    public onlyAllowProtocolToCall {
+        require(address(0) != ownerOf(tokenId), "INVALID_TOKEN");
+        require(starLevel > 0 && starLevel <= MAX_PROPERTY_VALUE, "INVALID_TOKEN");
+
+        emit UpdateStarLevel(msg.sender, cardProperty[tokenId].starLevel, starLevel);
+        cardProperty[tokenId].starLevel = starLevel;
+    }
+
+    function addUserQuotaPreRoundBatch(address[] memory users, uint[] memory quotas)
+    public override onlyAllowToCall {
         require(users.length == quotas.length, "SHOULD_BE_SAME_LENGTH");
         for(uint i = 0; i < users.length; i++){
             userQutaPreRoundTb[users[i]].quota = quotas[i];
         }
     }
 
-    function setUserQuotaPreRound(address user, uint quota) public override onlyOwner{
+    function setUserQuotaPreRound(address user, uint quota) 
+    public override onlyAllowToCall {
         userQutaPreRoundTb[user].quota = quota;
     }
 
@@ -201,7 +229,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         return userQutaPreRoundTb[user].quota.sub(userQutaPreRoundTb[user].used);
     }
 
-    function setBUSDQuotaPerPubRound(uint round, uint quota) public override onlyOwner{
+    function setBUSDQuotaPerPubRound(uint round, uint quota) 
+    public override onlyAllowToCall {
         require(isPublicRound(round), "NOT_PUBLIC_ROUND");
         busdQuotaPerPubRoundTb[round].quota = quota;
     }
@@ -228,7 +257,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         _paused = val;
     }
 
-    function setMaxMintAmount(uint round, BlindBoxesType boxType, uint amount) public onlyOwner{
+    function setMaxMintAmount(uint round, BlindBoxesType boxType, uint amount) 
+    public onlyAllowToCall{
         maxAmountTb[round][boxType] = amount;
     }
 
@@ -236,7 +266,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         return maxAmountTb[round][boxType];
     }
 
-    function setSellTime(uint round, uint _startTime, uint _endTime, uint _revealTime) public onlyOwner {
+    function setSellTime(uint round, uint _startTime, uint _endTime, uint _revealTime) 
+    public onlyAllowToCall {
         require(round <= MAX_ROUND, "INVLID_ROUND");
         require(_startTime >= block.timestamp, "INVLID_START_TIME");
         require(_endTime >= _startTime, "INVLID_END_TIME");
@@ -253,7 +284,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         return timeInfoTb[round].startTime;
     }
 
-    function setMaxMintSupply(uint _maxMintSupply) public onlyOwner{
+    function setMaxMintSupply(uint _maxMintSupply) public onlyAllowToCall{
         maxMintSupply = _maxMintSupply;
     }
 
@@ -261,7 +292,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         return maxMintSupply;
     }
 
-    function setMaxAmountPerAddress(uint _amount) public onlyOwner{
+    function setMaxAmountPerAddress(uint _amount) 
+    public onlyAllowToCall{
         maxPubicsaleUserMintAmount = _amount;
     }
 
@@ -269,7 +301,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         return maxPubicsaleUserMintAmount;
     }
 
-    function setMintPrice(uint round, uint256 _mintPrice, BlindBoxesType boxType) public onlyOwner {
+    function setMintPrice(uint round, uint256 _mintPrice, BlindBoxesType boxType) 
+    public onlyAllowToCall {
         require(round<= MAX_ROUND, "INVLID_ROUND");
         mintPriceTb[round][boxType] = _mintPrice;
     }
@@ -289,7 +322,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
      /**
     * @notice Allows to set the revealed variable to true
     **/
-    function reveal(bool _revealed) external onlyOwner{
+    function reveal(bool _revealed) 
+    external onlyAllowToCall {
         revealed = _revealed;
     }
 
@@ -300,7 +334,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
 
    function updateProperty(uint[] memory tokenIds, SoccerStar[] memory _soccerStars)
         external
-        onlyOwner{
+        onlyAllowToCall{
         require(tokenIds.length == _soccerStars.length, "NEED_SAME_LENGTH");
         for(uint i = 0; i < _soccerStars.length; i++){
             require(cardProperty[tokenIds[i]].starLevel == 0, "TOKEN_REVEALED");

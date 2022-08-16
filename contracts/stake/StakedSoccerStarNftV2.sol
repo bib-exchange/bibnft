@@ -43,11 +43,13 @@ contract StakedSoccerStarNftV2 is
   event RewardTokenChanged(address sender, address oldValue, address newValue);
   event RewardVaultChanged(address sender, address oldValue, address newValue);
   event BalanceHookChanged(address sender, address oldValue, address newValue);
+  event CoolDownDurationChanged(address sender, address oldValue, address newValue);
+
 
   /// @notice Address to pull from the rewards, needs to have approved this contract
   address public REWARDS_VAULT;
 
-  uint public coolDownDuration = 60;
+  uint public coolDownDuration;
   uint public totalStaked;
   uint public totalPower;
 
@@ -57,6 +59,8 @@ contract StakedSoccerStarNftV2 is
   mapping(uint=>TokenStakedInfo) public tokenStakedInfoTb;
   // user->power
   mapping(address=>uint) public userTotalPower;
+  // 
+  mapping(address=>bool) public allowProtocolToCallTb;
 
   function initialize(
     ISoccerStarNft stakedToken,
@@ -70,6 +74,8 @@ contract StakedSoccerStarNftV2 is
 
     // set owner
     _owner = msg.sender;
+
+    coolDownDuration = 60;
 
     setDistributionDuration(distributionDuration);
   }
@@ -85,6 +91,20 @@ contract StakedSoccerStarNftV2 is
 
   function unpause() public onlyOwner{
       _paused = false;
+  }
+
+  function setCoolDownDuration(uint _coolDownDuration) public onlyOwner{
+      CoolDownDurationChanged(msg.sender, coolDownDuration, _coolDownDuration);
+      coolDownDuration = _coolDownDuration;
+  }
+
+  function setAllowProtocolToCall(address _protAddr, bool value) public onlyOwner{
+      allowProtocolToCallTb[_protAddr] = value;
+  }
+
+  modifier onlyAllowProtocolToCall() {
+      require(allowProtocolToCallTb[msg.sender], "ONLY_PROTOCOL_CALL");
+      _;
   }
 
   function setStakedToken(address _newValue) public onlyOwner{
@@ -139,7 +159,13 @@ contract StakedSoccerStarNftV2 is
       ISoccerStarNft.SoccerStar memory cardInfo = ISoccerStarNft(address(STAKED_TOKEN)).getCardProperty(tokenId);
       require(cardInfo.starLevel > 0, "CARD_UNREAL");
       // The power equation: power = gradient * 10 ^ (starLevel -1)
-      return cardInfo.gradient.exp(cardInfo.starLevel.sub(1));
+      return caculatePower(cardInfo.gradient, cardInfo.starLevel);
+  }
+ 
+  function caculatePower(uint gradient, uint starLevel) 
+  public pure returns(uint power){
+    require(gradient > 0 && gradient <= M);
+    return gradient.exp(starLevel.sub(1));
   }
 
   function stake(uint tokenId) external override onlyWhenNotPaused{
@@ -238,6 +264,35 @@ contract StakedSoccerStarNftV2 is
     emit Withdraw(msg.sender, tokenId);
   }
 
+  function updateStarlevel(uint tokenId, uint starLevel) 
+    public onlyAllowProtocolToCall {
+      require(isStaked(tokenId), "TOKEN_NOT_STAKED");
+
+      ISoccerStarNft.SoccerStar memory cardInfo = ISoccerStarNft(address(STAKED_TOKEN)).getCardProperty(tokenId);
+      require(cardInfo.starLevel > 0, "CARD_UNREAL");
+
+      // recaculate token power
+      uint power = caculatePower(cardInfo.gradient, starLevel);
+
+      // update nft property
+      ISoccerStarNft(address(STAKED_TOKEN)).updateStarlevel(tokenId, starLevel);
+
+      // update power
+      address owner = tokenStakedInfoTb[tokenId].owner;
+      uint oldPower = userTotalPower[owner];
+      userTotalPower[owner] = power;
+      if(power > oldPower){
+        totalPower += power - oldPower;
+      } else {
+        totalPower -= power - oldPower;
+      }
+
+      // record extra dividend
+      if(address(0) != address(balanceHook)){
+        balanceHook.hookBalanceChange(msg.sender, userTotalPower[msg.sender]);
+      }
+    }
+    
   /**
    * @dev Claims reward to the specific token
    **/
