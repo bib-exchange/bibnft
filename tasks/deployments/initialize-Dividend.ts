@@ -6,6 +6,7 @@ import {
   getFeeCollector,
   getFeeCollectorImpl,
   getStakedDividendTracker,
+  getStakedDividendTrackerImpl,
   getStakedSoccerStarNftV2,
   getSoccerStarNftMarket,
   getContract
@@ -16,7 +17,6 @@ import { ZERO_ADDRESS,
   MIN_BNB_SWAP_THRESHOLD,
   getBIBTokenPerNetwork,
   getBUSDTokenPerNetwork,
-  getMockOraclePerNetwork,
   getTreasuryPerNetwork,
   getBIBAdminPerNetwork
  } from '../../helpers/constants';
@@ -24,9 +24,8 @@ import { ZERO_ADDRESS,
 const {
     StakedDividendTracker,
     FeeCollector,
-    FeeCollectorImpl,
-    StakedSoccerStarNftV2,
-    SoccerStarNftMarket
+    SoccerStarNftMarket,
+    StakedSoccerStarNftV2
 } = eContractid;
 
 task(`initialize-dividend`, `Initialize dividend contracts`)
@@ -41,16 +40,36 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
 
     const admin = await getBIBAdminPerNetwork(network);
     const stakeDividendTracker = await getStakedDividendTracker();
+    const stakeDividendTrackerImpl = await getStakedDividendTrackerImpl();
+
     const feeCollector = await getFeeCollector();
     const feeCollectorImpl = await getFeeCollectorImpl();
 
-    console.log(`\tInitialzie dividend proxy`);
+    console.log(`\n- Initialzie dividend proxy`);
+    const stakeDividendTrackerProxy = await getContract<InitializableAdminUpgradeabilityProxy>(
+      eContractid.InitializableAdminUpgradeabilityProxy,
+      stakeDividendTracker.address
+    );
+    let encodedInitialize = stakeDividendTrackerImpl.interface.encodeFunctionData('initialize', [
+      await getBIBTokenPerNetwork(network),
+    ]);
+
+    await waitForTx(
+      await stakeDividendTrackerProxy['initialize(address,address,bytes)'](
+        stakeDividendTrackerImpl.address,
+        admin,
+        encodedInitialize
+      )
+    );
+    console.log(`\tFinished dividend proxy initialize`);
+
+    console.log(`\n- Initialzie fee collector proxy`);
     const feeCollectorProxy = await getContract<InitializableAdminUpgradeabilityProxy>(
       eContractid.InitializableAdminUpgradeabilityProxy,
       feeCollector.address
     );
 
-    const encodedInitialize = feeCollectorImpl.interface.encodeFunctionData('initialize', [
+    encodedInitialize = feeCollectorImpl.interface.encodeFunctionData('initialize', [
       await getTreasuryPerNetwork(network),
       await getBIBTokenPerNetwork(network),
       await getBUSDTokenPerNetwork(network),
@@ -67,7 +86,7 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
       )
     );
 
-    // config swap thresh hold
+    // 1 config swap thresh hold
     console.log(`\tConfig ${FeeCollector} thresholds`);
     await waitForTx(
       await feeCollector.setSwapThreshHold(
@@ -76,32 +95,43 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
       )
     );
 
-    // set staken receiver
+    //  2 set fee collector receiver
     console.log(`\tset ${FeeCollector} fee receiver to ${StakedDividendTracker}`);
     await waitForTx(
       await feeCollector.setFeeReceiver(
-        stakeDividendTracker.address,
-        ZERO_ADDRESS, // TODO: replace with final addresses
-        ZERO_ADDRESS // TODO: replace with final addresses
+          stakeDividendTracker.address,
+          ZERO_ADDRESS, // TODO: replace with final addresses
+          ZERO_ADDRESS // TODO: replace with final addresses
         ));
-  
-    // brige market and staken 
-    console.log(`\tset ${StakedDividendTracker} fee sender to ${FeeCollector}`);
-    await waitForTx(
-      await stakeDividendTracker.setFeeSender(feeCollector.address));
 
+    // 3. allow fee collecter to distribute dividend
+    console.log(`\tallow ${FeeCollector} to call ${StakedDividendTracker} to distribute dividend`);
+    await waitForTx(
+      await stakeDividendTracker.setAllowToCall(feeCollector.address, true));
+    
+    // 4. set market fee collector
     console.log(`\tbind ${FeeCollector}  to ${SoccerStarNftMarket}`);
     const soccerStarNftMarket = await getSoccerStarNftMarket();
     await waitForTx(
       await soccerStarNftMarket.setFeeCollector(feeCollector.address));
 
-    // add market to allow caller list
+    // 5. allow the market to distribute dividend to the fee collector
     console.log(`\tadd ${SoccerStarNftMarket} to ${FeeCollector} as allow caller`);
     await waitForTx(
-      await feeCollector.setAllowCall(
-        soccerStarNftMarket.address,
-        true
-        ));
+      await feeCollector.setAllowToCall(
+          soccerStarNftMarket.address,
+          true));
 
-    console.log(`\tFinished dividend proxy initialize`);
+    // 6.  set staked balance hook to the dividend
+    const stakedSoccerStarNftV2= await getStakedSoccerStarNftV2();
+    console.log(`\tbind ${StakedDividendTracker} tracker to ${StakedSoccerStarNftV2}`);
+    await waitForTx(
+      await stakedSoccerStarNftV2.setBalanceHook(stakeDividendTracker.address));
+
+    // 7. allow staked module to update balance
+    console.log(`\tallow ${StakedDividendTracker} to call ${StakedDividendTracker}`);
+    await waitForTx(
+      await stakeDividendTracker.setAllowToCall(stakedSoccerStarNftV2.address, true));
+
+    console.log(`\tFinished dividend initialize`);
   });

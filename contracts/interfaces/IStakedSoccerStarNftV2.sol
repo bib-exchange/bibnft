@@ -22,6 +22,11 @@ interface IStakedSoccerStarNftV2 {
     // Triggered when reward is taken
     event ClaimReward(address sender, uint tokenId, uint amount);
 
+    function getTokenOwner(uint tokenId) external view returns(address);
+
+    // protocol to udpate the star level
+    function updateStarlevel(uint tokenId, uint starLevel) external;
+
     // user staken the spcified token
     function stake(uint tokenId) external;
 
@@ -55,6 +60,8 @@ interface IStakedSoccerStarNftV2 {
 
     // Check if the specified token is unfreezing
     function isUnfreezing(uint tokenId) external view returns(bool);
+
+    function transferOwnershipNFT(uint tokenId, address to) external;
 
     // Check if the specified token is withdrawable
     function isWithdrawAble(uint tokenId) external view returns(bool);

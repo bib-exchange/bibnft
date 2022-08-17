@@ -10,6 +10,8 @@ interface IBIBNode {
         uint256 upNode;
     }
     
+    function isStakedAsNode(uint tokenId) external view returns(bool);
+
     function getFreezeAmount(address _account) external view returns(uint256);
 
     function nodeMap(uint256 ticketId) external view returns(Node memory);

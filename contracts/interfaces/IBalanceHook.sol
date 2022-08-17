@@ -2,5 +2,5 @@
 pragma solidity >=0.8.0;
 
 interface IBalanceHook {
-    function hookBalanceChange(address user, uint newBalance) external;
+    function hookBalanceChange(address user, uint tokenId, uint newBalance) external;
 }
