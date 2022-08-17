@@ -83,7 +83,7 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         address _soccerStarNft, 
         address _bibToken, 
         address _bibStaking
-        ) initializer public {
+        ) reinitializer(1) public {
         cardNFTStake = IStakedSoccerStarNftV2(_cardNFTStake);
         soccerStarNft = ERC721Upgradeable(_soccerStarNft);
         BIBToken = IERC20Upgradeable(_bibToken);

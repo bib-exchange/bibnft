@@ -86,7 +86,7 @@ contract BIBDividend is OwnableUpgradeable{
     function initialize (
         IERC20Upgradeable _asset,
         uint256 _dripRatePerSecond
-    ) public initializer {
+    ) public reinitializer(1) {
         __Ownable_init();
         lastDripTimestamp = _currentTime();
         asset = _asset;
@@ -126,7 +126,11 @@ contract BIBDividend is OwnableUpgradeable{
         emit Withdrawn(to, amount);
     }
 
-    function distributeDividends(uint256 amount) external onlyDividendSetter {
+    function handleReceive(uint amount) public onlyDividendSetter {
+        distributeDividends(amount);
+    }
+
+    function distributeDividends(uint256 amount) public onlyDividendSetter {
         if (amount == 0 || nodeTotalStake.add(userNodeTotalStake) == 0) return;
         uint256 _nodeAmount = amount.mul(nodeRate).div(100);
         if (nodeTotalStake > 0) {

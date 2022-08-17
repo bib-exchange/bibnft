@@ -7,20 +7,23 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
+import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "../interfaces/ISoccerStarNft.sol";
 import "./ERC721A.sol";
 import "../deps/Ownable.sol";
-import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
-import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 
-contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializable {
+contract SoccerStarNft is 
+ISoccerStarNft, 
+ERC721A, 
+OwnableUpgradeable, 
+PausableUpgradeable {
     using Strings for uint;
     using SafeMath for uint;
 
-    uint constant VERSION = 1;
-    
     IERC20 public bibContract;
     IERC20 public busdContract;
     IUniswapV2Router02 public router;
@@ -30,7 +33,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     //URI of the NFTs when not revealed
     string public notRevealedURI;
     //The extension of the file containing the Metadatas of the NFTs
-    string public baseExtension = ".json";
+    string public constant BASE_EXTENSION = ".json";
 
     //Are the NFTs revealed yet ?
     bool public revealed = false;
@@ -38,9 +41,6 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     uint constant public ORACLE_PRECISION = 1e18;
 
     address constant public BLACK_HOLE = 0x0000000000000000000000000000000000000001;
-
-    // _paused is used to pause the contract in case of an emergency
-    bool public _paused;
 
     uint public maxMintSupply;
 
@@ -51,8 +51,6 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     uint constant public PUB_SELL_ROUND4 = 4;
     uint constant public PUB_SELL_ROUND5 = 5;
     uint constant public MAX_ROUND = PUB_SELL_ROUND5;
-
-    uint constant public MAX_PROPERTY_VALUE = 4;
 
     event BIBContractChanged(address sender, address oldValue, address newValue);
     event BUSDContractChanged(address sender, address oldValue, address newValue);
@@ -65,8 +63,9 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
 
     address public treasury;
 
-    uint256 public maxPubicsaleUserMintAmount = 10;
-    bytes32 public merkleRoot;
+    uint256 public maxPubicsaleUserMintAmount;
+
+    uint constant public MAX_PROPERTY_VALUE = 4;
 
     mapping(uint256 => bool) public isOwnerMint; // if the NFT was freely minted by owner
     mapping(uint256 => SoccerStar) public cardProperty;
@@ -101,30 +100,26 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     address _bibContract,
     address _busdContract,
     address _treasury,
-    address _router) public initializer{
+    address _router) public reinitializer(1) {
         maxMintSupply = _maxMintSupply;
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
         treasury = _treasury;
         router = IUniswapV2Router02(_router);
 
-        // set owner
-        _owner = msg.sender;
+        __Pausable_init();
+        __Ownable_init();
 
         // initialize
         _name = "SoccerStarNft";
         _symbol = "SCSTAR";
         maxPubicsaleUserMintAmount = 10;
-
+        revealed = false;
         _currentIndex = _startTokenId();
     }
 
-    modifier onlyWhenNotPaused {
-        require(!_paused, "PAUSED");
-        _;
-    }
-
-    function setAllowProtocolToCall(address _protAddr, bool value) public onlyOwner{
+    function setAllowProtocolToCall(address _protAddr, bool value) 
+    public onlyOwner{
         allowProtocolToCallTb[_protAddr] = value;
     }
 
@@ -180,7 +175,8 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     }
 
    // only allow protocol related contract to mint
-    function protocolMint() public override onlyAllowProtocolToCall returns(uint tokenId){
+    function protocolMint() 
+    public override onlyAllowProtocolToCall returns(uint tokenId){
         tokenId = _currentIndex;
         _mint(msg.sender, 1);
         require(msg.sender == ownerOf(tokenId), "PROTOCOL_MINT_FAILED");
@@ -252,13 +248,6 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         require(isPublicRound(round), "NOT_PUBLIC_ROUND");
         return busdQuotaPerPubRoundTb[round].quota.sub(busdQuotaPerPubRoundTb[round].used);
     }
-    
-    /**
-    * @dev setPaused makes the contract paused or unpaused
-     */
-    function setPaused(bool val) public onlyOwner {
-        _paused = val;
-    }
 
     function setMaxMintAmount(uint round, BlindBoxesType boxType, uint amount) 
     public onlyAllowToCall{
@@ -314,10 +303,6 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         return mintPriceTb[round][boxType];
     }
 
-    function setMerkleRoot(bytes32 _root) external onlyOwner {
-        merkleRoot = _root;
-    }
-
     function setBaseURI(string memory uri) external onlyOwner {
         baseURI = uri;
     }
@@ -354,7 +339,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     function preSellMint(uint256 quantity)
         external
         payable
-        onlyWhenNotPaused{
+        whenNotPaused{
         require(isRoundOpen(PRE_SELL_ROUND), "PRE_SELL_ROUND_NOT_OPENED");
         require(getUserRemainningQuotaPreRound(msg.sender) >= quantity, "USER_HAS_NO_QUOTA");
         require(
@@ -394,7 +379,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
     uint round, 
     BlindBoxesType boxType, 
     uint256 quantity, 
-    PayMethod payMethod) public onlyWhenNotPaused  {
+    PayMethod payMethod) public whenNotPaused  {
         require(isPublicRound(round), "NOT_PUBLIC_ROUND_NUM");
         require(isRoundOpen(round), "ROUND_NOT_OPEN");
         require(boxType != BlindBoxesType.presale, "PRESALE_BOX_NOT_ALLOWED");
@@ -435,7 +420,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         sales);
      }
 
-    function ownerMint(uint256 quantity) external onlyOwner onlyWhenNotPaused {
+    function ownerMint(uint256 quantity) external onlyOwner whenNotPaused {
         require(
             _totalMinted() + quantity <= getMaxMintSupply(),
             "MAX_SUPPLY_REACHED"
@@ -473,7 +458,7 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
         string memory currentBaseURI = _baseURI();
         return 
             bytes(currentBaseURI).length > 0 
-            ? string(abi.encodePacked(currentBaseURI, _nftId.toString(), baseExtension))
+            ? string(abi.encodePacked(currentBaseURI, _nftId.toString(), BASE_EXTENSION))
             : "";
     }
 
@@ -483,21 +468,5 @@ contract SoccerStarNft is ISoccerStarNft, ERC721A, Ownable, VersionedInitializab
 
     function setNotRevealURI(string memory _notRevealedURI) external onlyOwner {
         notRevealedURI = _notRevealedURI;
-    }
-
-    function _leaf(address _account) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(_account));
-    }
-
-    function _isAllowlisted(
-        address _account,
-        bytes32[] calldata _proof,
-        bytes32 _root
-    ) internal pure returns (bool) {
-        return MerkleProof.verify(_proof, _root, _leaf(_account));
-    }
-
-    function getRevision() internal pure override returns (uint256){
-        return VERSION;
     }
 }

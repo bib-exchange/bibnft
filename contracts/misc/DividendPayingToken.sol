@@ -65,13 +65,6 @@ abstract contract DividendPayingToken {
   /// @notice View the amount of dividend in wei that an address can withdraw.
   /// @param tokenId The address of a token holder.
   /// @return The amount of dividend in wei that `tokenId` can withdraw.
-  function dividendOf(uint tokenId) public view returns(uint256) {
-    return withdrawableDividendOf(tokenId);
-  }
-
-  /// @notice View the amount of dividend in wei that an address can withdraw.
-  /// @param tokenId The address of a token holder.
-  /// @return The amount of dividend in wei that `tokenId` can withdraw.
   function withdrawableDividendOf(uint tokenId) public view  returns(uint256) {
     return accumulativeDividendOf(tokenId).sub(withdrawnDividends[tokenId]);
   }

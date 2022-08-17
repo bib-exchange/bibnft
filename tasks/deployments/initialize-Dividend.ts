@@ -6,6 +6,7 @@ import {
   getFeeCollector,
   getFeeCollectorImpl,
   getStakedDividendTracker,
+  getStakedDividendTrackerImpl,
   getStakedSoccerStarNftV2,
   getSoccerStarNftMarket,
   getContract
@@ -39,16 +40,36 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
 
     const admin = await getBIBAdminPerNetwork(network);
     const stakeDividendTracker = await getStakedDividendTracker();
+    const stakeDividendTrackerImpl = await getStakedDividendTrackerImpl();
+
     const feeCollector = await getFeeCollector();
     const feeCollectorImpl = await getFeeCollectorImpl();
 
-    console.log(`\tInitialzie dividend proxy`);
+    console.log(`\n- Initialzie dividend proxy`);
+    const stakeDividendTrackerProxy = await getContract<InitializableAdminUpgradeabilityProxy>(
+      eContractid.InitializableAdminUpgradeabilityProxy,
+      stakeDividendTracker.address
+    );
+    let encodedInitialize = stakeDividendTrackerImpl.interface.encodeFunctionData('initialize', [
+      await getBIBTokenPerNetwork(network),
+    ]);
+
+    await waitForTx(
+      await stakeDividendTrackerProxy['initialize(address,address,bytes)'](
+        stakeDividendTrackerImpl.address,
+        admin,
+        encodedInitialize
+      )
+    );
+    console.log(`\tFinished dividend proxy initialize`);
+
+    console.log(`\n- Initialzie fee collector proxy`);
     const feeCollectorProxy = await getContract<InitializableAdminUpgradeabilityProxy>(
       eContractid.InitializableAdminUpgradeabilityProxy,
       feeCollector.address
     );
 
-    const encodedInitialize = feeCollectorImpl.interface.encodeFunctionData('initialize', [
+    encodedInitialize = feeCollectorImpl.interface.encodeFunctionData('initialize', [
       await getTreasuryPerNetwork(network),
       await getBIBTokenPerNetwork(network),
       await getBUSDTokenPerNetwork(network),
@@ -112,5 +133,5 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
     await waitForTx(
       await stakeDividendTracker.setAllowToCall(stakedSoccerStarNftV2.address, true));
 
-    console.log(`\tFinished dividend proxy initialize`);
+    console.log(`\tFinished dividend initialize`);
   });

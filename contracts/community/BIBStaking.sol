@@ -76,8 +76,11 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     }
 
     function initialize(
-        address _bibToken,address _bibNode, address _bibDividend, address _soccerStarNft
-        ) initializer public {
+        address _bibToken,
+        address _bibNode, 
+        address _bibDividend, 
+        address _soccerStarNft
+        ) reinitializer(1) public {
         BIBToken = IERC20Upgradeable(_bibToken);
         BIBNode = IBIBNode(_bibNode);
         BIBDividend = IBIBDividend(_bibDividend);
@@ -97,6 +100,7 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
         nodeStakedUsers[_ticket].push(operator);
         stakeNodesMap[operator].push(_ticket);
         nodeStakedDetail[_ticket][operator] = _bibAmount;
+        emit Staking(operator, _ticket, _bibAmount);
         updataNodeWigth(_ticket);
         require(getNodeMaxStake(_ticket) >= node.stakingAmount, "Limit exceeded");
         BIBDividend.setUserBalance(operator, _ticket, getUserStakeAmount(operator));

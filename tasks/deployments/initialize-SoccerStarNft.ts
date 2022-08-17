@@ -5,7 +5,9 @@ import { eEthereumNetwork } from '../../helpers/types-common';
 import {
   getSoccerStarNft,
   getSoccerStarNftImpl,
-  getContract
+  getContract,
+  getComposedSoccerStarNft,
+  getStakedSoccerStarNftV2
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
@@ -17,7 +19,7 @@ import { ZERO_ADDRESS,
   getBIBAdminPerNetwork
  } from '../../helpers/constants';
 
-const { SoccerStarNft } = eContractid;
+const { SoccerStarNft, ComposedSoccerStarNft, StakedSoccerStarNftV2 } = eContractid;
 
 task(`initialize-${SoccerStarNft}`, `Initialize the ${SoccerStarNft} proxy contract`)
   .setAction(async ({}, localBRE) => {
@@ -27,7 +29,7 @@ task(`initialize-${SoccerStarNft}`, `Initialize the ${SoccerStarNft} proxy contr
       throw new Error('INVALID_CHAIN_ID');
     }
 
-    console.log(`\Initialzie ${SoccerStarNft} proxy`);
+    console.log(`\n- Initialzie ${SoccerStarNft} proxy`);
     
     const network = localBRE.network.name as eEthereumNetwork;
 
@@ -54,6 +56,18 @@ task(`initialize-${SoccerStarNft}`, `Initialize the ${SoccerStarNft} proxy contr
         admin,
         encodedInitialize
       )
+    );
+
+    console.log(`\tAllow ${ComposedSoccerStarNft} to call ${SoccerStarNft} proxy`);
+    const composerNft = await getComposedSoccerStarNft();
+    await waitForTx(
+      await soccerStarNft.setAllowProtocolToCall(composerNft.address, true)
+    );
+
+    console.log(`\tAllow ${StakedSoccerStarNftV2} to call ${SoccerStarNft} proxy`);
+    const stakedNft = await getStakedSoccerStarNftV2();
+    await waitForTx(
+      await soccerStarNft.setAllowProtocolToCall(stakedNft.address, true)
     );
 
     console.log(`\tFinished ${SoccerStarNft} proxy initialize`);

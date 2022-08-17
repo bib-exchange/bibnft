@@ -28,7 +28,7 @@ if (!SKIP_LOAD) {
 }
 
 const DEFAULT_BLOCK_GAS_LIMIT = 12500000;
-const DEFAULT_GAS_PRICE = 50000000000; // 50 gwei
+const DEFAULT_GAS_PRICE = 8000000000; // 8 gwei
 const HARDFORK = 'istanbul';
 const INFURA_KEY = process.env.INFURA_KEY || '';
 const ALCHEMY_KEY = process.env.ALCHEMY_KEY || '';

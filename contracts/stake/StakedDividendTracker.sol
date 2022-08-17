@@ -4,18 +4,22 @@ pragma solidity >=0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import "../lib/SafeMathUint.sol";
 import "../lib/SafeMathInt.sol";
 
 import {DividendPayingToken} from "../misc/DividendPayingToken.sol";
 import {IBalanceHook} from "../interfaces/IBalanceHook.sol";
 import "../interfaces/IFeeReceiver.sol";
+import "../interfaces/IStakedDividendTracker.sol";
 
 contract StakedDividendTracker is 
 DividendPayingToken,
-Ownable,
+OwnableUpgradeable,
+PausableUpgradeable,
+IStakedDividendTracker,
 IFeeReceiver,
 IBalanceHook {
     using SafeMath for uint256;
@@ -25,30 +29,19 @@ IBalanceHook {
     mapping(address=>bool) public allowCallTb;
     mapping(address=>uint[]) public userTokenTb;
 
-    bool public _paused;
-
-    IERC20 rewardToken;
+    IERC20 public rewardToken;
 
     event ReceivedFee(address sender, uint amount);
     event DividendWithdrawn(address user, uint tokenId, uint amount);
     event RewardTokenChanged(address sender, address newValue, address oldValue);
 
-    modifier onlyWhenNotPaused {
-        require(!_paused, "PAUSED");
-        _;
-    }
-
-    function puase() public onlyOwner {
-        _paused = true;
-    }
-
-    function unpause() public onlyOwner{
-        _paused = false;
-    }
-
-    constructor(address _rewardToken){
+    function initialize(
+    address _rewardToken
+    ) reinitializer(1) public {
         require(address(0) != _rewardToken, "INVALID_ADDRESS");
         rewardToken = IERC20(_rewardToken);
+        __Pausable_init();
+        __Ownable_init();
     }
 
     function setRewardToken(address _rewardToken) public onlyOwner {
@@ -58,7 +51,7 @@ IBalanceHook {
     }
 
     function setAllowToCall(address caller, bool allow) public onlyOwner{
-        allowCallTb[caller] = true;
+        allowCallTb[caller] = allow;
     }
 
     function isAllowToCall(address caller) public view returns(bool){
@@ -70,6 +63,20 @@ IBalanceHook {
         _;
     }
 
+    function dividendOf(address user) public view override returns(uint256) {
+        uint unclaimed = 0;
+        uint[] storage tokens = userTokenTb[user];
+        for(uint i = 0; i < tokens.length; i++){
+            unclaimed += dividendOfToken(tokens[i]);
+        }
+        return unclaimed;
+    }
+
+    function dividendOfToken(uint tokenId) 
+    public view  override returns(uint256) {
+        return withdrawableDividendOf(tokenId);
+    }
+ 
     function hookBalanceChange(address user, uint tokenId, uint newBalance)
      public override onlyCaller{
         if(newBalance > 0){
@@ -77,18 +84,13 @@ IBalanceHook {
         } else {
             // remove token
             uint[] storage tokens = userTokenTb[user];
-            uint indexToRm = tokens.length;
             for(uint i = 0; i < tokens.length; i++){
                 if(tokens[i] == tokenId){
-                    indexToRm = i;
+                    tokens[i] = tokens[tokens.length - 1];
+                    tokens.pop();
                     break;
                 }
             }
-            require(indexToRm < tokens.length, "TOKEN_NOT_EXIST");
-            for(uint i = indexToRm; i < tokens.length - 1; i++){
-                tokens[i] = tokens[i+1];
-            }
-            tokens.pop();
         }
 
         _setBalance(tokenId, newBalance);
@@ -101,13 +103,23 @@ IBalanceHook {
 
     /// @notice Withdraws the ether distributed to the sender.
     /// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
-    function withdrawDividendOfToken(uint tokenId) public onlyWhenNotPaused{
+    function withdrawDividendOfToken(uint tokenId) public whenNotPaused{
+        uint[] storage tokenIds = userTokenTb[msg.sender];
+        uint index = tokenIds.length;
+        for(uint i; i < tokenIds.length; i++){
+            if(tokenId == tokenIds[i]){
+                index = i;
+                break;
+            }
+        }
+        require(index <  tokenIds.length, "TOKEN_NOT_BELONG_TO_USER");
+    
         _withdrawDividendOfToken(msg.sender, tokenId);
     }
 
     /// @notice Withdraws the ether distributed to the sender.
     /// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
-    function withdrawDividend() public onlyWhenNotPaused{
+    function withdrawDividend() public whenNotPaused{
         uint[] storage tokens = userTokenTb[msg.sender];
         for(uint i = 0; i < tokens.length; i++){
             _withdrawDividendOfToken(msg.sender, tokens[i]); 

@@ -5,22 +5,21 @@ import { eEthereumNetwork } from '../../helpers/types-common';
 import {
   getSoccerStarNft,
   getContract,
+  getStakedDividendTracker,
   getStakedSoccerStarNftV2,
-  getStakedSoccerStarNftV2Impl
+  getStakedSoccerStarNftV2Impl,
+  getBIBNode
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
   getBIBTokenPerNetwork,
-  getBUSDTokenPerNetwork,
-  getMockOraclePerNetwork,
-  getTreasuryPerNetwork,
   getBIBAdminPerNetwork,
   getRewardVaultPerNetwork,
   EMISSION_PER_SECONDS,
   DISTRIBUTION_END
  } from '../../helpers/constants';
 
-const {StakedSoccerStarNftV2} = eContractid;
+const {StakedSoccerStarNftV2, BIBNode, StakedDividendTracker} = eContractid;
 
 task(`initialize-${StakedSoccerStarNftV2}`, `Initialize the ${StakedSoccerStarNftV2} proxy contract`)
   .setAction(async ({}, localBRE) => {
@@ -31,12 +30,13 @@ task(`initialize-${StakedSoccerStarNftV2}`, `Initialize the ${StakedSoccerStarNf
       throw new Error('INVALID_CHAIN_ID');
     }
 
-    console.log(`\tInitialzie ${StakedSoccerStarNftV2} proxy`);
+    console.log(`\n- Initialzie ${StakedSoccerStarNftV2} proxy`);
     
     const network = localBRE.network.name as eEthereumNetwork;
-
+    const bibNode = await getBIBNode();
     const admin = await getBIBAdminPerNetwork(network);
     const soccerStarNft = await getSoccerStarNft();
+    const stakedDividend = await getStakedDividendTracker();
 
     const stakedSoccerStarNftV2 = await getStakedSoccerStarNftV2();
     const stakedSoccerStarNftV2Impl = await getStakedSoccerStarNftV2Impl();
@@ -47,7 +47,8 @@ task(`initialize-${StakedSoccerStarNftV2}`, `Initialize the ${StakedSoccerStarNf
     );
     
     const encodedInitialize = stakedSoccerStarNftV2Impl.interface.encodeFunctionData('initialize', [
-        soccerStarNft.address,
+       bibNode.address, 
+       soccerStarNft.address,
         await getBIBTokenPerNetwork(network),
         await getRewardVaultPerNetwork(network),
         DISTRIBUTION_END
@@ -71,11 +72,17 @@ task(`initialize-${StakedSoccerStarNftV2}`, `Initialize the ${StakedSoccerStarNf
       totalPower: "0",
       underlyingAsset: stakedSoccerStarNftV2.address
     };
-    console.log(`configure emission:
-      ${rewardEmission}
-    `);
     await waitForTx( 
       await stakedSoccerStarNftV2.configureAssets([rewardEmission]));
+
+    console.log(`\tAllow ${BIBNode} to call ${StakedSoccerStarNftV2} proxy`);
+    await waitForTx(
+      await stakedSoccerStarNftV2.setAllowProtocolToCall(bibNode.address, true)
+    );
+
+    console.log(`\tbind ${StakedDividendTracker} tracker to ${StakedSoccerStarNftV2}`);
+    await waitForTx(
+      await stakedSoccerStarNftV2.setBalanceHook(stakedDividend.address));
 
     console.log(`\tFinished ${StakedSoccerStarNftV2} proxy initialize`);
   });

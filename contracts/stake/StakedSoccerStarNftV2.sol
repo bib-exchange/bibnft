@@ -5,12 +5,12 @@ pragma experimental ABIEncoderV2;
 
 //import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeCast} from "../lib/SafeCast.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {IStakedSoccerStarNftV2} from "../interfaces/IStakedSoccerStarNftV2.sol";
-
-import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 import {DistributionTypes} from "../lib/DistributionTypes.sol";
 import {DistributionManager} from "../misc/DistributionManager.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
@@ -19,7 +19,6 @@ import {IERC20} from "../interfaces/IERC20.sol";
 import {IBalanceHook} from "../interfaces/IBalanceHook.sol";
 import {IBIBNode} from "../interfaces/IBIBNode.sol";
 
-
 /**
  * @title StakedToken
  * @notice Contract to stake Aave token, tokenize the position and get rewards, inheriting from a distribution manager contract
@@ -27,15 +26,12 @@ import {IBIBNode} from "../interfaces/IBIBNode.sol";
  **/
 contract StakedSoccerStarNftV2 is
   IStakedSoccerStarNftV2,
-  VersionedInitializable,
+  PausableUpgradeable,
   DistributionManager
 {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
   using SafeCast for uint;
-
-  uint256 public constant REVISION = 0x1;
-  bool public _paused;
 
   ISoccerStarNft public STAKED_TOKEN;
   IERC20 public REWARD_TOKEN;
@@ -71,31 +67,19 @@ contract StakedSoccerStarNftV2 is
     IERC20 rewardToken,
     address rewardsVault,
     uint128 distributionDuration
-  ) public initializer {
+  ) public reinitializer(1)  {
     STAKED_TOKEN = stakedToken;
     REWARD_TOKEN = rewardToken;
     REWARDS_VAULT = rewardsVault;
     NODE = _node;
 
-    // set owner
-    _owner = msg.sender;
+    __Pausable_init();
+    __Ownable_init();
 
+    // TODO: shall be set to 7 days
     coolDownDuration = 60;
 
     setDistributionDuration(distributionDuration);
-  }
-
-  modifier onlyWhenNotPaused {
-      require(!_paused, "PAUSED");
-      _;
-  }
-
-  function puase() public onlyOwner {
-      _paused = true;
-  }
-
-  function unpause() public onlyOwner{
-      _paused = false;
   }
 
   function setAllowProtocolToCall(address _protAddr, bool value) 
@@ -171,7 +155,7 @@ contract StakedSoccerStarNftV2 is
     return gradient.exp(starLevel.sub(1));
   }
 
-  function stake(uint tokenId) external override onlyWhenNotPaused{
+  function stake(uint tokenId) external override whenNotPaused{
     require(isOwner(tokenId, msg.sender), "NOT_TOKEN_OWNER");
 
     // delegate token to this contract
@@ -210,7 +194,7 @@ contract StakedSoccerStarNftV2 is
    * @dev Redeems staked tokens, and stop earning rewards
    * @param tokenId token to redeem to
    **/
-  function redeem(uint tokenId) external override onlyWhenNotPaused{
+  function redeem(uint tokenId) external override whenNotPaused{
     require(isStaked(tokenId), "TOKEN_NOT_SATKED");
     require(getTokenOwner(tokenId) == msg.sender, "NOT_TOKEN_OWNER");
 
@@ -238,7 +222,7 @@ contract StakedSoccerStarNftV2 is
   }
 
   // user withdraw the spcified token
-  function withdraw(uint tokenId) public override onlyWhenNotPaused{
+  function withdraw(uint tokenId) public override whenNotPaused{
     require(getTokenOwner(tokenId) == msg.sender, "NOT_TOKEN_OWNER");
     require(isWithdrawAble(tokenId), "NOT_WITHDRAWABLE");
 
@@ -256,18 +240,13 @@ contract StakedSoccerStarNftV2 is
 
     // remove from user list
     uint[] storage tokenIds = userStakedTokenTb[msg.sender];
-    uint indexToRm = tokenIds.length;
     for(uint i = 0; i < tokenIds.length; i++){
         if(tokenIds[i] == tokenId){
-            indexToRm = i;
+            tokenIds[i] = tokenIds[tokenIds.length - 1];
+            tokenIds.pop();
             break;
         }
     }
-    require(indexToRm < tokenIds.length, "TOKEN_NOT_EXIST");
-    for(uint i = indexToRm; i < tokenIds.length - 1; i++){
-        tokenIds[i] = tokenIds[i+1];
-    }
-    tokenIds.pop();
 
     emit Withdraw(msg.sender, tokenId);
   }
@@ -276,27 +255,22 @@ contract StakedSoccerStarNftV2 is
   public onlyAllowProtocolToCall {
     require(isStaked(tokenId), "TOKEN_NOT_STAKED");
     address owner = tokenStakedInfoTb[tokenId].owner;
-    require(owner != to, "SAME_OWER");
+    require(owner != to, "SAME_OWNER");
 
     // transfer ownership
     tokenStakedInfoTb[tokenId].owner = to;
 
     // update old user token table
     uint[] storage tokenIds = userStakedTokenTb[owner];
-    uint indexToRm = tokenIds.length;
     for(uint i = 0; i < tokenIds.length; i++){
       if(tokenIds[i] == tokenId){
-          indexToRm = i;
+          tokenIds[i] = tokenIds[tokenIds.length - 1];
+          tokenIds.pop();
           break;
       }
     }
-    require(indexToRm < tokenIds.length, "TOKEN_NOT_EXIST");
-    for(uint i = indexToRm; i < tokenIds.length - 1; i++){
-      tokenIds[i] = tokenIds[i+1];
-    }
-    tokenIds.pop();
     // update new user token table
-    userStakedTokenTb[owner].push(tokenId);
+    userStakedTokenTb[to].push(tokenId);
 
     // update user power table
     ISoccerStarNft.SoccerStar memory cardInfo = 
@@ -305,7 +279,10 @@ contract StakedSoccerStarNftV2 is
     userTotalPower[owner] -= power;
     userTotalPower[to] += power;
 
-    // TODO: need to transfer staken rewards?
+    // settle user unclaimed rewards
+    uint unclaimed = getUnClaimedRewardsByToken(tokenId);
+    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, owner, unclaimed);
+    emit ClaimReward(owner, tokenId, unclaimed);
 
     // update dvidend share
     if(address(0) != address(balanceHook)){
@@ -322,7 +299,7 @@ contract StakedSoccerStarNftV2 is
 
       address owner = tokenStakedInfoTb[tokenId].owner;
 
-      // redeem unclaimed reward
+      // claimed unclaimed reward
       uint unclaimedRewards = getUnClaimedRewardsByToken(tokenId);
       REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, owner, unclaimedRewards);
       emit ClaimReward(owner, tokenId, unclaimedRewards);
@@ -341,6 +318,8 @@ contract StakedSoccerStarNftV2 is
       } else {
         totalPower -= power - oldPower;
       }
+      // udpate global and token index
+      _updateTokenAssetInternal(tokenId, address(this), 0, totalPower);
 
       // record extra dividend
       if(address(0) != address(balanceHook)){
@@ -351,7 +330,7 @@ contract StakedSoccerStarNftV2 is
   /**
    * @dev Claims reward to the specific token
    **/
-  function claimRewards() external override onlyWhenNotPaused{
+  function claimRewards() external override whenNotPaused{
     uint unclaimedRewards = 0;
     uint[] storage tokenIds = userStakedTokenTb[msg.sender];
     for(uint i = 0; i < tokenIds.length; i++){
@@ -439,13 +418,5 @@ contract StakedSoccerStarNftV2 is
     }
 
     return ret;
-  }
-
-  /**
-  * @dev returns the revision of the implementation contract
-  * @return The revision
-  */
-  function getRevision() internal pure override returns (uint256) {
-    return REVISION;
   }
 }

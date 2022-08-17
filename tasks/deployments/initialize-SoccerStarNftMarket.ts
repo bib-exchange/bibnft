@@ -27,7 +27,7 @@ task(`initialize-${SoccerStarNftMarket}`, `Initialize the ${SoccerStarNftMarket}
       throw new Error('INVALID_CHAIN_ID');
     }
 
-    console.log(`\tInitialzie ${SoccerStarNftMarket} proxy`);
+    console.log(`\n- Initialzie ${SoccerStarNftMarket} proxy`);
     
     const network = localBRE.network.name as eEthereumNetwork;
 

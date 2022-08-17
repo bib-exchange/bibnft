@@ -27,7 +27,7 @@ task(`initialize-${ComposedSoccerStarNft}`, `Initialize the ${ComposedSoccerStar
       throw new Error('INVALID_CHAIN_ID');
     }
 
-    console.log(`\tInitialzie ${ComposedSoccerStarNft} proxy`);
+    console.log(`\n- Initialzie ${ComposedSoccerStarNft} proxy`);
     
     const network = localBRE.network.name as eEthereumNetwork;
     
@@ -56,10 +56,6 @@ task(`initialize-${ComposedSoccerStarNft}`, `Initialize the ${ComposedSoccerStar
         encodedInitialize
       )
     );
-
-    console.log(`\tSet ${SoccerStarNft} composer ${ComposedSoccerStarNft} proxy`);
-    // set composer
-    await waitForTx(await soccerStarNft.setComposer(composedSoccerStarNft.address));
 
     console.log(`\tFinished ${ComposedSoccerStarNft} proxy initialize`);
   });

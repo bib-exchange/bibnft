@@ -6,6 +6,7 @@ export enum eContractid {
   MockBusd = "MockBUSD",
   MockBibOracle = "MockBIBOracle",
   BibOracle = "BibOracle",
+  IterableMapping = "IterableMapping",
   IERC20Detailed = 'IERC20Detailed',
   SoccerStarNft = "SoccerStarNft",
   SoccerStarNftImpl = "SoccerStarNftImpl",
@@ -16,10 +17,17 @@ export enum eContractid {
   StakedSoccerStarNftV2 = "StakedSoccerStarNftV2",
   StakedSoccerStarNftV2Impl = "StakedSoccerStarNftV2Impl",
   StakedDividendTracker = "StakedDividendTracker",
+  StakedDividendTrackerImpl = "StakedDividendTrackerImpl",
   FeeCollector = "FeeCollector",
   FeeCollectorImpl = 'FeeCollectorImpl',
   InitializableAdminUpgradeabilityProxy = "InitializableAdminUpgradeabilityProxy",
-  StakedRewardUiDataProvider = "StakedRewardUiDataProvider"
+  StakedRewardUiDataProvider = "StakedRewardUiDataProvider",
+  BIBNode = "BIBNode",
+  BIBNodeImpl = "BIBNodeImpl",
+  BIBDividend = "BIBDividend",
+  BIBDividendImpl = "BIBDividendImpl",
+  BIBStaking = "BIBStaking",
+  BIBStakingImpl = "BIBStakingImpl"
 }
 
 export enum ProtocolErrors {}
