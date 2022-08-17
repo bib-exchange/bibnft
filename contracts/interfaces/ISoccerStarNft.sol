@@ -41,6 +41,8 @@ interface ISoccerStarNft {
         uint256 quantity, 
         PayMethod payMethod, 
         uint sales);
+        
+    function updateStarlevel(uint tokenId, uint starLevel) external;
 
     // whitelist functions
     function addUserQuotaPreRoundBatch(address[] memory users,uint[] memory quotas) external;

@@ -17,11 +17,11 @@ export const WAD = Math.pow(10, 18).toString();
 export const SUPPORTED_ETHERSCAN_NETWORKS = ['main', 'bsc', 'bsc_test'];
 
 export const MAX_NFT_QUOTA = "29930";
-export const EMISSION_PER_SECONDS = 10000; // TODO: need change once confirmed
-export const DISTRIBUTION_END = 1000000; // TODO: need change once confirmed
-export const MIN_BUSD_SWAP_THRESHOLD = ethers.utils.parseEther('10');
-export const MIN_BNB_SWAP_THRESHOLD = ethers.utils.parseEther('0.01');
-
+export const EMISSION_PER_SECONDS = "50735667174023340000"; // 16% * 40% = 6400000000 * 1e18/ (4 * 365 * 24 * 3600)
+export const DISTRIBUTION_END = "126144000"; // (4 * 365 * 24 * 3600)
+export const MIN_BUSD_SWAP_THRESHOLD = ethers.utils.parseUnits('10');
+export const MIN_BNB_SWAP_THRESHOLD = ethers.utils.parseUnits('0.01');
+export const DRIP_RATE_PER_SECOND = "69761542364282085000"; // 16%*55% = 8800000000 * 1e18/ (4 * 365 * 24 * 3600)
 export const getBIBTokenDomainSeparatorPerNetwork = (network: eEthereumNetwork): tEthereumAddress =>
   getParamPerNetwork<tEthereumAddress>(
     {
@@ -40,7 +40,7 @@ export const getBIBAdminPerNetwork = (network: eEthereumNetwork): tEthereumAddre
   getParamPerNetwork<tEthereumAddress>(
     {
       [eEthereumNetwork.coverage]: "0xA1198B5dE887cd2916817C6D5d902ddfE210aBe9",
-      [eEthereumNetwork.hardhat]: ZERO_ADDRESS,
+      [eEthereumNetwork.hardhat]: '0xA1198B5dE887cd2916817C6D5d902ddfE210aBe9',
       [eEthereumNetwork.bsc_test]: '0xA1198B5dE887cd2916817C6D5d902ddfE210aBe9',
       [eEthereumNetwork.bsc]: '0x3b681f97Acd15eF59FE9A229eDf16458c94f1F43',//bsc safe
     },
@@ -53,7 +53,7 @@ export const getBIBTokenPerNetwork = (network: eEthereumNetwork): tEthereumAddre
 getParamPerNetwork<tEthereumAddress>(
   {
     [eEthereumNetwork.coverage]: ZERO_ADDRESS,
-    [eEthereumNetwork.hardhat]: ZERO_ADDRESS,
+    [eEthereumNetwork.hardhat]: '0x9dA2E2a429A8233f683AE0b7414862f390C7eE9C',
     [eEthereumNetwork.bsc_test]: '0x9dA2E2a429A8233f683AE0b7414862f390C7eE9C', // TODO: need to replace
     [eEthereumNetwork.bsc]: ZERO_ADDRESS,
   },
@@ -64,7 +64,7 @@ export const getBUSDTokenPerNetwork = (network: eEthereumNetwork): tEthereumAddr
 getParamPerNetwork<tEthereumAddress>(
   {
     [eEthereumNetwork.coverage]: ZERO_ADDRESS,
-    [eEthereumNetwork.hardhat]: ZERO_ADDRESS,
+    [eEthereumNetwork.hardhat]: '0x9555f1998C31D4387c044582869c77B2EB4bb2cc',
     [eEthereumNetwork.bsc_test]: '0x9555f1998C31D4387c044582869c77B2EB4bb2cc', // TODO: need to replace
     [eEthereumNetwork.bsc]: ZERO_ADDRESS,
   },
@@ -86,7 +86,7 @@ export const getTreasuryPerNetwork = (network: eEthereumNetwork): tEthereumAddre
 getParamPerNetwork<tEthereumAddress>(
   {
     [eEthereumNetwork.coverage]: ZERO_ADDRESS,
-    [eEthereumNetwork.hardhat]: ZERO_ADDRESS,
+    [eEthereumNetwork.hardhat]: '0xD2F3c942Bc1AaEaD58C38801B46535fc7Bd3aA0c',
     [eEthereumNetwork.bsc_test]: '0xD2F3c942Bc1AaEaD58C38801B46535fc7Bd3aA0c', // TODO: need to replace
     [eEthereumNetwork.bsc]: ZERO_ADDRESS,
   },
@@ -97,7 +97,7 @@ export const getRewardVaultPerNetwork = (network: eEthereumNetwork): tEthereumAd
 getParamPerNetwork<tEthereumAddress>(
   {
     [eEthereumNetwork.coverage]: ZERO_ADDRESS,
-    [eEthereumNetwork.hardhat]: ZERO_ADDRESS,
+    [eEthereumNetwork.hardhat]: '0xD2F3c942Bc1AaEaD58C38801B46535fc7Bd3aA0c',
     [eEthereumNetwork.bsc_test]: '0xD2F3c942Bc1AaEaD58C38801B46535fc7Bd3aA0c', // TODO: need to replace
     [eEthereumNetwork.bsc]: ZERO_ADDRESS,
   },
@@ -108,7 +108,7 @@ export const getSwapRoterPerNetwork = (network: eEthereumNetwork): tEthereumAddr
 getParamPerNetwork<tEthereumAddress>(
   {
     [eEthereumNetwork.coverage]: ZERO_ADDRESS,
-    [eEthereumNetwork.hardhat]: ZERO_ADDRESS,
+    [eEthereumNetwork.hardhat]: '0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3',
     [eEthereumNetwork.bsc_test]: '0x9Ac64Cc6e4415144C455BD8E4837Fea55603e5c3', // TODO: need to replace
     [eEthereumNetwork.bsc]: '0x10ED43C718714eb63d5aA57B78B54704E256024E',
   },

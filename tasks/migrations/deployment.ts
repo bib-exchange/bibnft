@@ -46,6 +46,9 @@ task('deployment', 'Deployment in bsc-test network')
     // 6. deploy deploy-${StakedRewardUiDataProvider}
     await DRE.run(`deploy-${eContractid.StakedRewardUiDataProvider}`, {verify})
 
+    // 7. deploy deploy-CommunityNode
+    await DRE.run(`deploy-CommunityNode`, {verify});
+
     // 1
     await DRE.run(`initialize-${eContractid.SoccerStarNft}`, { verify });
     // 2
@@ -56,6 +59,9 @@ task('deployment', 'Deployment in bsc-test network')
     await DRE.run(`initialize-${eContractid.StakedSoccerStarNftV2}`, { verify });
     // 5
     await DRE.run(`initialize-dividend`, { verify });
+    6
+    await DRE.run(`initialize-CommunityNode`, {verify});
+
 
     console.log(`\n✔️ Finished the deployment for ${network}. ✔️`);
   });

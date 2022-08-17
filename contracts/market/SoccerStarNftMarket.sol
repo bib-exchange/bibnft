@@ -5,6 +5,8 @@ pragma solidity >=0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {Ownable} from "../deps/Ownable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeCast} from "../lib/SafeCast.sol";
@@ -14,18 +16,18 @@ import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 import {IFeeCollector} from "../interfaces/IFeeCollector.sol";
 import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 
-contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitializable{
+contract SoccerStarNftMarket is 
+ISoccerStarNftMarket, 
+OwnableUpgradeable, 
+PausableUpgradeable{
     using SafeMath for uint;
-
-    uint constant VERSION = 0x1;
-    bool public _paused;
 
     address public treasury;
 
     IERC20 public bibContract;
     IERC20 public busdContract;
     ISoccerStarNft public tokenContract;
-    IFeeCollector feeCollector;
+    IFeeCollector public feeCollector;
 
     event TokenContractChanged(address sender, address oldValue, address newValue);
     event BIBContractChanged(address sender, address oldValue, address newValue);
@@ -34,11 +36,11 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     event RoyaltyRatioChanged(address sender, uint oldValue, uint newValue);
     event FeeCollectorChanged(address sender, address oldValue, address newValue);
 
-    uint public nextOrderIndex = 1;
-    uint public nextOfferIndex = 1;
+    uint public nextOrderIndex;
+    uint public nextOfferIndex;
 
-    uint public feeRatio = 25;
-    uint public royaltyRatio = 75;
+    uint public feeRatio;
+    uint public royaltyRatio;
     uint public constant FEE_RATIO_DIV = 1000;
 
     // mapping order_id to order
@@ -61,27 +63,20 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
         address _bibContract,
         address _busdContract,
         address _treasury
-        ) public initializer{
+        ) public reinitializer(1) {
         treasury = _treasury;
         tokenContract = ISoccerStarNft(_tokenContract);
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
 
-        // set owner
-        _owner = msg.sender;
-    }
+        nextOrderIndex = 1;
+        nextOfferIndex = 1;
 
-    modifier onlyWhenNotPaused {
-        require(!_paused, "PAUSED");
-        _;
-    }
+        feeRatio = 25;
+        royaltyRatio = 75;
 
-    function puase() public onlyOwner {
-        _paused = true;
-    }
-
-    function unpause() public onlyOwner{
-        _paused = false;
+        __Pausable_init();
+        __Ownable_init();
     }
 
     function getBlockTime() public override view returns(uint){
@@ -144,7 +139,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
 
     // user create a order
     function openOrder(address issuer, uint tokenId, PayMethod payMethod, uint price, uint expiration)
-     public override payable onlyWhenNotPaused{
+     public override payable whenNotPaused{
         require(address(0) != issuer, "INVALID_ISSURE");
         require(expiration > block.timestamp, "EXPIRATION_TOO_SMALL");
         require(price > 0, "PRICE_NOT_BE_ZEROR");
@@ -203,8 +198,9 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     }
 
     function caculateFees(uint amount) view public returns(uint, uint ){
-        // caculate owner fee + taker fee
-        return (amount.mul(feeRatio).div(FEE_RATIO_DIV), amount.mul(royaltyRatio).div(FEE_RATIO_DIV));
+        // exchange fee + royaltyRatio fee
+        uint txFee = amount.mul(feeRatio).div(FEE_RATIO_DIV);
+        return (txFee, amount.sub(txFee));
     }
 
     // Owner accept the price
@@ -261,7 +257,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
 
     // Buyer accept the price and makes a deal with the sepcific order
     function acceptOrder(uint orderId) 
-    public  override payable onlyWhenNotPaused{
+    public  override payable whenNotPaused{
         Order storage order = orderTb[orderId];
         require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender != order.owner, "SHOULD_NOT_BE_ORDER_OWNER");
@@ -270,7 +266,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
         // caculate fees
         (uint txFee, uint royaltyFee ) = caculateFees(order.price);
         uint fees = txFee.add(royaltyFee);
-        uint amount = order.price.sub(txFee).sub(fees);
+        uint amount = order.price.sub(fees);
 
         // fee + royalty goese to BIB treasury
         if(order.payMethod == PayMethod.PAY_BNB){
@@ -318,7 +314,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
 
     // Owner accept the offer and make a deal
     function acceptOffer(uint offerId) 
-    public  override payable onlyWhenNotPaused{
+    public  override payable whenNotPaused{
         Offer storage offer = offerTb[offerId];
         require(address(0) != offer.issuer, "INVALID_OFFER");
         require(msg.sender != offer.buyer, "CANT_MAKE_DEAL_WITH_SELF");
@@ -335,7 +331,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
         // caculate sales
        (uint txFee, uint royaltyFee )= caculateFees(offer.bid);
         uint fees = txFee.add(royaltyFee);
-        uint amount = offer.bid.sub(txFee).sub(royaltyFee);
+        uint amount = offer.bid.sub(fees);
 
         // fee + royalty goese to BIB treasury
         if(offer.payMethod == PayMethod.PAY_BNB){
@@ -377,7 +373,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
     
     // Owner updates order price
     function updateOrderPrice(uint orderId, uint price) 
-    public override payable onlyWhenNotPaused{
+    public override payable whenNotPaused{
         Order storage order = orderTb[orderId];
         require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
@@ -394,21 +390,15 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
         require(address(0) != order.issuer,"INVALID_ORDER");
 
         uint[] storage userOrders = userOrdersTb[order.owner];
-        uint indexToRm = userOrders.length;
         for(uint i = 0; i < userOrders.length; i++){
            if(orderTb[userOrders[i]].orderId == orderId){
-                indexToRm = i;
+                userOrders[i] = userOrders[userOrders.length - 1];
+                userOrders.pop();
                 break;
            }
         }
-        require(indexToRm < userOrders.length, "ORDER_NOT_EXIST");
-        for(uint i = indexToRm; i < userOrders.length - 1; i++){
-            userOrders[i] = userOrders[i+1];
-        }
-        userOrders.pop();
 
         delete orderTb[orderId];
-
         delete tokenOrderTb[order.issuer][order.tokenId];
         
         emit CloseOrder(msg.sender, orderId);
@@ -416,7 +406,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
 
     // Owner close the specific order if not dealed
     function closeOrder(uint orderId)
-     public override onlyWhenNotPaused{
+     public override whenNotPaused{
         Order storage order = orderTb[orderId];
         require(address(0) != order.issuer,"INVALID_ORDER");
         require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
@@ -451,7 +441,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
 
     // Buyer make a offer to the specific order
     function makeOffer(address issuer, uint tokenId, PayMethod payMethod, uint price, uint expiration)
-     public override payable onlyWhenNotPaused{
+     public override payable whenNotPaused{
         require(address(0) != issuer,"INVALID_ADDRESS");
         require(!isOwner(issuer, tokenId, msg.sender), "CANT_MAKE_OFFER_WITH_SELF");
         require(!hasOffer(issuer, tokenId, msg.sender), "HAS_MADE_OFFER");
@@ -489,7 +479,7 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
 
     // Buyer udpate offer bid price
     function updateOfferPrice(uint offerId, uint price) 
-    public override payable onlyWhenNotPaused{
+    public override payable whenNotPaused{
         Offer storage offer = offerTb[offerId];
         require(msg.sender == offer.buyer, "SHOULD_BE_OFFER_MAKER");
         require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
@@ -530,25 +520,20 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
         Offer storage offer = offerTb[offerId];
 
         uint[] storage offers = tokenOffersTb[offer.issuer][offer.tokenId];
-        uint indexToRm = offers.length;
         for(uint i = 0; i < offers.length; i++){
            if(offerTb[offers[i]].offerId == offerId){
-                indexToRm = i;
+                offers[i] = offers[offers.length - 1];
+                offers.pop();
                 break;
            }
         }
-        require(indexToRm < offers.length, "OFFER_NOT_EXIST");
-        for(uint i = indexToRm; i < offers.length - 1; i++){
-            offers[i] = offers[i+1];
-        }
-        offers.pop();
         delete offerTb[offerId];
 
         emit CancelOffer(msg.sender, offerId);
     }
 
     // Buyer cancle the specific order
-    function cancelOffer(uint offerId) public override onlyWhenNotPaused{
+    function cancelOffer(uint offerId) public override whenNotPaused{
         Offer storage offer = offerTb[offerId];
         require(msg.sender == offer.buyer, "SHOULD_BE_OFFER_MAKER");
 
@@ -562,9 +547,4 @@ contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable, VersionedInitiali
 
         _cancleOffer(offerId);
     }
-
-  function getRevision() internal pure override returns (uint256){
-    return VERSION;
-  }
-
 }

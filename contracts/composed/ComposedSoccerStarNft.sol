@@ -6,23 +6,21 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
-import "../deps/Ownable.sol";
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeCast} from "../lib/SafeCast.sol";
 import {IComposedSoccerStarNft} from "../interfaces/IComposedSoccerStarNft.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
-import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 
-contract ComposedSoccerStarNft is IComposedSoccerStarNft, 
-Ownable, VersionedInitializable {
+contract ComposedSoccerStarNft is 
+IComposedSoccerStarNft, 
+OwnableUpgradeable, 
+PausableUpgradeable {
     using SafeMath for uint;
 
-    bool public _paused;
-    uint constant public VERSION = 0x01;
-
-    address constant public BLOCK_HOLE = address(0x0000000000000000000000000000000000000001);
+    address constant public BLACK_HOLE = address(0x0000000000000000000000000000000000000001);
    
     ISoccerStarNft public tokenContract;
     IERC20 public bibContract;
@@ -30,15 +28,16 @@ Ownable, VersionedInitializable {
     IBIBOracle public priceOracle;
 
     // fill with default
-    uint[12] public feeRates = [360000,  730000,    1200000, 2200000,
-                      1800000, 3650000,   6000000, 11000000,
-                      9000000, 18250000,  30000000, 55000000];
+    uint[12] public feeRates;
 
     address public treasury;
 
     uint constant public MAX_STARLEVEL = 4;
     uint constant public STARLEVEL_RANGE = 4;
     uint constant public ORACLE_PRECISION = 1e18;
+
+    uint public startup;
+    uint public deadline;
 
     event TokenContractChanged(address sender, address oldValue, address newValue);
     event BIBContractChanged(address sender, address oldValue, address newValue);
@@ -53,32 +52,31 @@ Ownable, VersionedInitializable {
     address _busdContract,
     address _treasury,
     address _priceOracle
-    ) public initializer {
+    ) public reinitializer(1) {
         tokenContract = ISoccerStarNft(_tokenContract);
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
         treasury = _treasury;
         priceOracle = IBIBOracle(_priceOracle);
 
-        // set owner
-        _owner = msg.sender;
+        feeRates = [360000,  730000,  1200000, 2200000,
+                    1800000, 3650000, 6000000, 11000000,
+                    9000000, 18250000,30000000,55000000];
+
+        __Pausable_init();
+        __Ownable_init();
     }
 
-    modifier onlyWhenNotPaused {
-        require(!_paused, "PAUSED");
-        _;
+    function setActivityTimeline(uint _startup, uint _deadline) public onlyOwner{
+        require(_startup > block.timestamp, "STARTUP_TOO_EARLY");
+        require(_deadline > _startup, "INVALID_DEADLINE");
+
+        startup = _startup;
+        deadline = _deadline;
     }
 
-    function puase() public onlyOwner {
-        _paused = true;
-    }
-
-    function unpause() public onlyOwner{
-        _paused = false;
-    }
-
-    function getRevision() internal pure override returns (uint256){
-        return VERSION;
+    function isActivityOpen() public view returns(bool){
+        return block.timestamp >= startup && block.timestamp < deadline;
     }
 
     function setTokenContract(address _tokenContract) public onlyOwner{
@@ -124,7 +122,7 @@ Ownable, VersionedInitializable {
     ComposeMode mode, 
     uint extralToken, 
     PayMethod payMethod
-    ) public override onlyWhenNotPaused{
+    ) public override whenNotPaused{
         require(4 == tokenIds.length, "NEED_FOUR_TOKENS");
         require(validToken(tokenIds[0], tokenIds), "NEED_SAME_TOKEN_PROPER");
         require(validStarLevel(tokenIds[0]), "NEED_LOWER_STARLEVEL");
@@ -134,7 +132,7 @@ Ownable, VersionedInitializable {
 
         // burn all
         for(uint i = 0; i < tokenIds.length; i++){
-            IERC721(address(tokenContract)).transferFrom(msg.sender, BLOCK_HOLE, tokenIds[i]);
+            IERC721(address(tokenContract)).transferFrom(msg.sender, BLACK_HOLE, tokenIds[i]);
         }
 
         // compose new
@@ -144,11 +142,13 @@ Ownable, VersionedInitializable {
         if(ComposeMode.COMPOSE_NORMAL == mode) {
             require(msg.sender == IERC721(address(tokenContract)).ownerOf(extralToken), "TOKEN_NOT_BELLOW_TO_SENDER");
             // burn the extral
-            IERC721(address(tokenContract)).transferFrom(msg.sender, BLOCK_HOLE, extralToken);
+            IERC721(address(tokenContract)).transferFrom(msg.sender, BLACK_HOLE, extralToken);
         } else {
+            require(isActivityOpen(), "ACTIVITY_IS_NOT_OPENED");
+            
             payAmount = caculateBurnAmount(soccerStar.starLevel, soccerStar.gradient);
             if(PayMethod.PAY_BIB == payMethod){
-                bibContract.transferFrom(msg.sender, BLOCK_HOLE, payAmount);
+                bibContract.transferFrom(msg.sender, BLACK_HOLE, payAmount);
             } else {
                 payAmount = caculateBUSDAmount(payAmount);
                 busdContract.transferFrom(msg.sender, treasury, payAmount);

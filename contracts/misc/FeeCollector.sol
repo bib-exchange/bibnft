@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: agpl-3.0
 pragma solidity >=0.8.0;
 
-import {Ownable} from "../deps/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
+
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeCast} from "../lib/SafeCast.sol";
-import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IFeeReceiver} from "../interfaces/IFeeReceiver.sol";
-import {VersionedInitializable} from "../deps/VersionedInitializable.sol";
 
-contract FeeCollector is Ownable,VersionedInitializable {
+contract FeeCollector is 
+OwnableUpgradeable, 
+PausableUpgradeable {
     using SafeMath for uint;
     using SafeCast for uint;
 
@@ -18,7 +21,7 @@ contract FeeCollector is Ownable,VersionedInitializable {
     uint totalBUSDRecieved;
     uint totalBIBRecieved;
 
-    mapping(address=>bool) public allowCall;
+    mapping(address=>bool) public allowToCall;
 
     uint public constant VERSION = 0x01;
     uint public vaultRatio = 150;
@@ -53,10 +56,6 @@ contract FeeCollector is Ownable,VersionedInitializable {
     event HandleCollect(address sender, TokenType tokenType, uint amount);
     event Distribute(address sender, address receiver, uint amount);
 
-    function getRevision() internal pure override returns (uint256){
-        return VERSION;
-    }
-
     function initialize(
         address _vault,
         address _bibToken,
@@ -64,7 +63,7 @@ contract FeeCollector is Ownable,VersionedInitializable {
         address _stakedReceiver,
         address _kolReceiver,
         address _poolReceiver
-        ) public initializer {
+        ) public reinitializer(1)  {
             
         vault = _vault;
         bibToken = IERC20(_bibToken);
@@ -73,7 +72,16 @@ contract FeeCollector is Ownable,VersionedInitializable {
         stakedReceiver = IFeeReceiver(_stakedReceiver);
         kolReceiver = IFeeReceiver(_kolReceiver);
         poolReceiver = IFeeReceiver(_poolReceiver);
-        _owner = msg.sender;
+
+        vaultRatio = 150;
+        stakedRatio = 400;
+        kolRatio = 50;
+        poolRatio = 550;
+        minBUSDToSwap = 100;
+        minBNBToSwap = 0.01 ether;
+
+        __Pausable_init();
+        __Ownable_init();
     }
 
     function setDistributeRatio(
@@ -129,16 +137,16 @@ contract FeeCollector is Ownable,VersionedInitializable {
         uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
     }
 
-    function setAllowCall(address caller, bool value) public onlyOwner{
-        allowCall[caller] = value;
+    function setAllowToCall(address caller, bool value) public onlyOwner{
+        allowToCall[caller] = value;
     }
 
     function isAllowCall(address caller) public view returns(bool){
-        return allowCall[caller];
+        return allowToCall[caller];
     }
 
     modifier onlyCaller(){
-        require(allowCall[msg.sender], "ONLY_PROTOCOL_ADDRESS_CAN_CALL");
+        require(allowToCall[msg.sender], "ONLY_CALLER");
         _;
     }
 
