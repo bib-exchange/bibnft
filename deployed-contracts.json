@@ -1,127 +1,127 @@
 {
   "SoccerStarNft": {
     "bsc_test": {
-      "address": "0x9cFB34CDe2A2DBF68F63d4D3f80bc01E1e7e3334",
+      "address": "0xF23d838A605377924d6eC3241fDC87B7c8664Dc5",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "SoccerStarNftImpl": {
     "bsc_test": {
-      "address": "0x97f66BbB9656f142d89d3d0B3aBA115F1F0261CF",
+      "address": "0xb1De4e6a0288AA2532102A5765B5f776E74f6b74",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "InitializableAdminUpgradeabilityProxy": {
     "bsc_test": {
-      "address": "0xb3bE9CD50eF1d7DB9EBA7Dcfc742d7Fc659EC236",
+      "address": "0x6d4973Af4Bc9f23E80EAa697A62FE71fcc706d16",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "ComposedSoccerStarNft": {
     "bsc_test": {
-      "address": "0x015356C75005E940Dbab2478c93D9d332b245DAc",
+      "address": "0xaEbEB776569e742a54fA799d01C378aBCa6d3952",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "ComposedSoccerStarNftImpl": {
     "bsc_test": {
-      "address": "0x45D0931ca7D9f903E823E9d1392CBb08bd0c63D5",
+      "address": "0xaf495cfD40F89556787C906507EfE781Afa45a28",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "SoccerStarNftMarket": {
     "bsc_test": {
-      "address": "0xB70cbe8330DFa318216Ea4A8C1a8d4c9385688D6",
+      "address": "0xD09662806D91c05fBfBB4a8773615E1f76Cea520",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "SoccerStarNftMarketImpl": {
     "bsc_test": {
-      "address": "0x45f85F0a32158Ad75EC56225529e45BcB7cb52eD",
+      "address": "0xbEA19cF4aBF3010818A3885BbCC62644659A6F87",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "StakedSoccerStarNftV2": {
     "bsc_test": {
-      "address": "0x908BD84cA442deb953eCb7b4617e8F32b926cF1b",
+      "address": "0x026e48b96CC5bb0D1F80bac277dA20596e5f3877",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "StakedSoccerStarNftV2Impl": {
     "bsc_test": {
-      "address": "0xA056b929d48DB484ff3380D8A10644Fa0149e05D",
+      "address": "0xa24832aFFA7666560dF12C45a3Db3e6F97Be8dbF",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "StakedDividendTracker": {
     "bsc_test": {
-      "address": "0xA5365CC588de6189BEC2ADb72c6Fe6616d98BeEA",
+      "address": "0x58D93e95de59420FCbEfC2F9c7EEBE7A4075773D",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "StakedDividendTrackerImpl": {
     "bsc_test": {
-      "address": "0x7C84bD937D2CB192A6EEd1b3f491Eef840789022",
+      "address": "0x225E3039744ecbAE24FEAa4750dAFF8edDFAaF9b",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "FeeCollector": {
     "bsc_test": {
-      "address": "0xBBa9f8dDf8bFE507206aE4AA2F3A7aBaD87CDD21",
+      "address": "0xFAc1e55642185d7570eC3CEe7f7D06a98c1b58A5",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "FeeCollectorImpl": {
     "bsc_test": {
-      "address": "0xE83e4C7f31ef6eA018e2e4f2699b5e6B8Aa0Bfda",
+      "address": "0xc00C98F500F96C25145B601C0a2d061B6282112a",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "StakedRewardUiDataProvider": {
     "bsc_test": {
-      "address": "0xA0E370AAa125E76D8b66d034793649304De5FF78",
+      "address": "0x413F5A0f5013141d5985D9F4bbe2c1AeB4a6CFC6",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "BIBNode": {
     "bsc_test": {
-      "address": "0x0F37B724eb7cA994739F515f888c7A5F3c822408",
+      "address": "0x4ed17CF6a73f9B9F0DdBaCea0d1D51D09c2CC5C0",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "BIBNodeImpl": {
     "bsc_test": {
-      "address": "0x663795dDaBcde82b85651AdFCdE2743f392EC7e8",
+      "address": "0xa5AD21B77e8892e5FAccc896a689571342B5BDea",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "IterableMapping": {
     "bsc_test": {
-      "address": "0x4b7368A0C07d784DF75479dCc2eCB44680057cFa",
+      "address": "0x04F56829bE08A6854C9f29E3905C855dF76EE3E6",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "BIBDividendImpl": {
     "bsc_test": {
-      "address": "0xB65a6766250206A582D2c7D3C68bBC3eD0f9ec9a",
+      "address": "0x8CBAEb6FdF780Da0e1b62e1a0FF06a74219dB249",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "BIBDividend": {
     "bsc_test": {
-      "address": "0x9b5A5D2969364EB90ee8597c17bc1ED1C21cB6D7",
+      "address": "0x0d75952aF783f29C5d3C8B2d6B5C0E622ca5d9AF",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "BIBStaking": {
     "bsc_test": {
-      "address": "0xb3bE9CD50eF1d7DB9EBA7Dcfc742d7Fc659EC236",
+      "address": "0x6d4973Af4Bc9f23E80EAa697A62FE71fcc706d16",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
   "BIBStakingImpl": {
     "bsc_test": {
-      "address": "0xbcf341b18E53eB9F1A0135971C2989EFc68fdB48",
+      "address": "0x54d43Ff6DED4653f76929287A93E4db6A7a2b78e",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   }
