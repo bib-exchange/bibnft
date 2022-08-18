@@ -18,6 +18,8 @@
     "test": "TS_NODE_TRANSPILE_ONLY=1 hardhat test",
     "coverage": "SKIP_LOAD=true npx hardhat typechain && node --max_old_space_size=6144 node_modules/.bin/hardhat coverage",
     "dev:deployment": "hardhat dev-deployment ",
+    "bsc-test:transfer-ownership": "npm run hardhat-bsc-test -- migrate-owner-and-admin --no-admin-change",
+    "bsc:transfer-ownership": "npm run hardhat-bsc -- migrate-owner-and-admin --noAdminChange",
     "bsc-test:deployment": "npm run hardhat-bsc-test -- bsc-test-deployment --verify",
     "bsc:deployment": "npm run hardhat-bsc -- bsc-deployment",
     "dev-deployment": "npm run hardhat -- dev-deployment",
