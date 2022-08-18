@@ -31,14 +31,12 @@
   },
   "SoccerStarNftMarket": {
     "bsc_test": {
-      "address": "0xD09662806D91c05fBfBB4a8773615E1f76Cea520",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0xD09662806D91c05fBfBB4a8773615E1f76Cea520"
     }
   },
   "SoccerStarNftMarketImpl": {
     "bsc_test": {
-      "address": "0xbEA19cF4aBF3010818A3885BbCC62644659A6F87",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0xa50C57D7dEb20E343f3D395B0f39E8CdfEF73E04"
     }
   },
   "StakedSoccerStarNftV2": {
