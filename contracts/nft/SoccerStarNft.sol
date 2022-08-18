@@ -133,7 +133,7 @@ PausableUpgradeable {
     }
 
     modifier onlyAllowToCall(){
-          require(allowToCallTb[msg.sender], "ONLY_PERMIT_CALLER");
+          require(allowToCallTb[msg.sender] || msg.sender == owner(), "ONLY_PERMIT_CALLER");
         _;
     }
 
@@ -303,7 +303,7 @@ PausableUpgradeable {
         return mintPriceTb[round][boxType];
     }
 
-    function setBaseURI(string memory uri) external onlyOwner {
+    function setBaseURI(string memory uri) external onlyAllowToCall {
         baseURI = uri;
     }
 
