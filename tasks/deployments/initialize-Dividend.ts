@@ -9,6 +9,7 @@ import {
   getStakedDividendTrackerImpl,
   getStakedSoccerStarNftV2,
   getSoccerStarNftMarket,
+  getBIBDividend,
   getContract
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
@@ -41,6 +42,7 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
     const admin = await getBIBAdminPerNetwork(network);
     const stakeDividendTracker = await getStakedDividendTracker();
     const stakeDividendTrackerImpl = await getStakedDividendTrackerImpl();
+    const bibDividend = await getBIBDividend();
 
     const feeCollector = await getFeeCollector();
     const feeCollectorImpl = await getFeeCollectorImpl();
@@ -75,7 +77,7 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
       await getBUSDTokenPerNetwork(network),
       stakeDividendTracker.address,
       ZERO_ADDRESS,
-      ZERO_ADDRESS,
+      bibDividend.address,
     ]);
 
     await waitForTx(
