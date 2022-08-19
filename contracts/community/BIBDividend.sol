@@ -19,6 +19,7 @@ contract BIBDividend is OwnableUpgradeable{
     event DripRateChanged(
         uint256 dripRatePerSecond
     );
+    event NodeRateChange(uint256 nodeRate);
 
     event Withdrawn(
         address indexed to,
@@ -330,6 +331,13 @@ contract BIBDividend is OwnableUpgradeable{
         drip();
         dripRatePerSecond = _dripRatePerSecond;
         emit DripRateChanged(dripRatePerSecond);
+    }
+
+    function setNodeRate(uint256 _nodeRate) external onlyOwner {
+        require(_nodeRate > 0, "TokenFaucet/nodeRate-gt-zero");
+        drip();
+        nodeRate = _nodeRate;
+        emit NodeRateChange(nodeRate);
     }
 
     function updateClaimWait(uint256 newClaimWait) public onlyOwner {

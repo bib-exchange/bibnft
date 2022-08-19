@@ -254,6 +254,9 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     function setTopNodeCount(uint256 c) external onlyOwner{
         topNodeCount = c;
     }
+    function setFreezeTime(uint256 times) external onlyOwner {
+        freezeTime = times;
+    }
     function setStakeCapTimes(uint256 times) external onlyOwner {
         stakeCapTimes = times;
     }
