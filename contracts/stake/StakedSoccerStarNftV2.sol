@@ -340,6 +340,19 @@ contract StakedSoccerStarNftV2 is
     REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, msg.sender, unclaimedRewards);
   }
 
+    /**
+   * @dev Claims reward to the specific token
+   **/
+  function claimRewardsOnbehalfOf(address to) external override whenNotPaused{
+    uint unclaimedRewards = 0;
+    uint[] storage tokenIds = userStakedTokenTb[to];
+    for(uint i = 0; i < tokenIds.length; i++){
+      unclaimedRewards = _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
+      emit ClaimReward(to, tokenIds[i], unclaimedRewards);
+    }
+    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, to, unclaimedRewards);
+  }
+
   /**
    * @dev Updates the user state related with his accrued rewards
    * @param tokenId token id
