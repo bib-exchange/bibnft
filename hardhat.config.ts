@@ -9,6 +9,7 @@ import 'solidity-coverage';
 import '@nomiclabs/hardhat-waffle';
 import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-ethers';
+import 'hardhat-abi-exporter';
 import path from 'path';
 import fs from 'fs';
 require('dotenv').config();
@@ -142,6 +143,15 @@ const config: HardhatUserConfig = {
       url: 'http://localhost:8555',
       chainId: COVERAGE_CHAINID,
     },
+  },
+  abiExporter: {
+    path: './abi',
+    runOnCompile: true,
+    flat: true,
+    only: [
+      '^.*BIB.*','^.*Fee.*','^.*Soccer.*','^.*Stake.*', 'DistributionManager'
+    ],
+    except: ['Ownable', 'ERC20', '^.*IERC.*', '^.*IBIB.*', '^.*Harness$']
   },
 };
 

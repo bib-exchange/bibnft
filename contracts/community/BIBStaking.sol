@@ -32,10 +32,10 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     IBIBDividend public BIBDividend;
     ISoccerStarNft public soccerStarNft;
     
-    uint256 public freezeTime = 7 days;
-    uint256 public stakeCapTimes = 50;
-    uint256 public topNodeCount = 30;
-    uint256[] public nodeWigth = [100, 90, 80, 72];
+    uint256 public freezeTime;
+    uint256 public stakeCapTimes;
+    uint256 public topNodeCount;
+    uint256[] public nodeWigth;
     mapping(uint256 => uint256) public maxSetupAmount;
     // user -> stake node list
     mapping(address => uint256[]) public stakeNodesMap;
@@ -45,7 +45,7 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     mapping(uint256 => mapping(address => uint256)) public nodeStakedDetail;
     mapping(uint256 => Node) public nodeMap;
     
-    uint256 public gasForProcessing = 300000;
+    uint256 public gasForProcessing;
     event UpdateMaxSetUp(uint256 indexed level, uint256 newMaxSetUp);
     event SuperNode(uint256 ticketId);
     event UnSuperNode(uint256 ticketId);
@@ -89,6 +89,12 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
         __Ownable_init();
         maxSetupAmount[3] = 200000*10**18;
         maxSetupAmount[4] = 2000000*10**18;
+        
+        freezeTime = 7 days;
+        stakeCapTimes = 50;
+        topNodeCount = 30;
+        nodeWigth = [100, 90, 80, 72];
+        gasForProcessing = 300000;
     }
 
     function createNode(address operator, uint256 _ticket, uint256 _bibAmount) external onlyNode {
@@ -253,6 +259,9 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     }
     function setTopNodeCount(uint256 c) external onlyOwner{
         topNodeCount = c;
+    }
+    function setFreezeTime(uint256 times) external onlyOwner {
+        freezeTime = times;
     }
     function setStakeCapTimes(uint256 times) external onlyOwner {
         stakeCapTimes = times;

@@ -41,9 +41,9 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
     // card nft -> user
     mapping(uint256 => address) public cardNFTOwners;
 
-    mapping(address => CardNFTFreeze) public cardNFTFreezeMap;
+    mapping(uint256 => ISoccerStarNft.SoccerStar) public ticketProperty;
     mapping(uint256 => uint256[]) public subNodes; 
-    uint256 public constant maxSubNodeCount = 10;
+    uint256 public maxSubNodeCount;
 
     address public constant BLACK_HOLE = address(0x0000000000000000000000000000000000000001);
 
@@ -77,6 +77,7 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         uint256 indexed ticketId,
         uint256 bibAmount
     );
+    event UpdateMaxSubNodeCount(uint256 maxCount);
 
     function initialize(
         address _cardNFTStake, 
@@ -91,6 +92,9 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         __ERC721_init("BIB NODE ERC 721", "BIBNode");
         __Pausable_init();
         __Ownable_init();
+
+        maxSubNodeCount = 10;
+        emit UpdateMaxSubNodeCount(10);
     }
 
     function isStakedAsNode(uint tokenId) external view returns(bool){
@@ -113,6 +117,7 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         ticketMap[operator] = ticket;
         nodeList.push(ticket);
         BIBStaking.createNode(operator, ticket, _bibAmount);
+        ticketProperty[ticket] =ISoccerStarNft(address(soccerStarNft)).getCardProperty(_cardNFTId);
         emit CreateNode(operator, _cardNFTId, _bibAmount, ticket);
     }
 
@@ -151,6 +156,7 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         ISoccerStarNft.SoccerStar memory cardInfo = ISoccerStarNft(address(soccerStarNft)).getCardProperty(_cardNFTId);
         require(cardInfo.starLevel == 3, "ONLY_STARLEVEL_THREE");
         cardNFTStake.updateStarlevel(_cardNFTId, (cardInfo.starLevel + 1));
+        ticketProperty[_ticket].starLevel = cardInfo.starLevel + 1;
 
         // need the other 4 tokens share the same property
         require(_cardNFTIds.length == 4, "NEED_FOUR_TOKENS");
@@ -262,12 +268,22 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         soccerStarNft = ERC721Upgradeable(_cardNft);
     }
 
+    function setMaxSubNodeCount(uint256 _maxSubNodeCount) external onlyOwner {
+        maxSubNodeCount = _maxSubNodeCount;
+        emit UpdateMaxSubNodeCount(_maxSubNodeCount);
+    }
+
     function setBaseURI(string memory uri) external onlyOwner {
         baseURI = uri;
     }
 
     function getCardNFTByAddress(address user) public view returns(uint256) {
         return nodeMap[ticketMap[user]].cardNftId;
+    }
+
+    function getTicketProperty(uint256 tokenId) public view
+    returns(ISoccerStarNft.SoccerStar memory){
+        return ticketProperty[tokenId];
     }
 
     function _baseURI() internal view override returns (string memory) {
