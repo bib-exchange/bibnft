@@ -43,7 +43,7 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
 
     mapping(uint256 => ISoccerStarNft.SoccerStar) public ticketProperty;
     mapping(uint256 => uint256[]) public subNodes; 
-    uint256 public constant maxSubNodeCount = 10;
+    uint256 public maxSubNodeCount;
 
     address public constant BLACK_HOLE = address(0x0000000000000000000000000000000000000001);
 
@@ -77,6 +77,7 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         uint256 indexed ticketId,
         uint256 bibAmount
     );
+    event UpdateMaxSubNodeCount(uint256 maxCount);
 
     function initialize(
         address _cardNFTStake, 
@@ -91,6 +92,9 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
         __ERC721_init("BIB NODE ERC 721", "BIBNode");
         __Pausable_init();
         __Ownable_init();
+
+        maxSubNodeCount = 10;
+        emit UpdateMaxSubNodeCount(10);
     }
 
     function isStakedAsNode(uint tokenId) external view returns(bool){
@@ -262,6 +266,11 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
     function setCardNft(address _cardNft) external onlyOwner {
         require(_cardNft != address(0), 'Invalid address');
         soccerStarNft = ERC721Upgradeable(_cardNft);
+    }
+
+    function setMaxSubNodeCount(uint256 _maxSubNodeCount) external onlyOwner {
+        maxSubNodeCount = _maxSubNodeCount;
+        emit UpdateMaxSubNodeCount(_maxSubNodeCount);
     }
 
     function setBaseURI(string memory uri) external onlyOwner {

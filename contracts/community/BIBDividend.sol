@@ -56,7 +56,7 @@ contract BIBDividend is OwnableUpgradeable{
     address public controller;
     address public dividendSetter;
     uint256 public dripRatePerSecond;
-    uint256 public nodeRate = 20;
+    uint256 public nodeRate;
     // drip per second
     uint256 public userExchangeRateMantissa;
     uint256 public nodeExchangeRateMantissa;
@@ -80,8 +80,8 @@ contract BIBDividend is OwnableUpgradeable{
     IterableMapping.Map private tokenHoldersMap;
     uint256 public lastProcessedIndex;
     mapping (address => uint256) public lastClaimTimes;
-    uint256 public claimWait = 1 hours;
-    uint256 public immutable minimumTokenBalanceForDividends = 1e5 * (10**9);
+    uint256 public claimWait;
+    uint256 public minimumTokenBalanceForDividends;
     event ClaimWaitUpdated(uint256 indexed newValue, uint256 indexed oldValue);
     
     function initialize (
@@ -92,6 +92,10 @@ contract BIBDividend is OwnableUpgradeable{
         lastDripTimestamp = _currentTime();
         asset = _asset;
         setDripRatePerSecond(_dripRatePerSecond);
+
+        nodeRate = 20;
+        minimumTokenBalanceForDividends = 1e5 * (10**9);
+        claimWait = 1 hours;
     }
 
     function setController(address _cntr) external onlyOwner {
