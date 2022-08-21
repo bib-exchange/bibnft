@@ -32,7 +32,7 @@ contract StakedRewardUiDataProvider {
 
     // Claim rewards
     function claimRewards() public{
-        staked.claimRewards();
-        dividend.withdrawDividend();
+        staked.claimRewardsOnbehalfOf(msg.sender);
+        dividend.withdrawDividendOnbehalfOf(msg.sender);
     }
 }

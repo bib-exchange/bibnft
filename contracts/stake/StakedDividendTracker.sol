@@ -119,10 +119,18 @@ IBalanceHook {
 
     /// @notice Withdraws the ether distributed to the sender.
     /// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
+    function withdrawDividendOnbehalfOf(address to) public whenNotPaused{
+        _withdrawDividend(to);
+    }
+
     function withdrawDividend() public whenNotPaused{
-        uint[] storage tokens = userTokenTb[msg.sender];
+        _withdrawDividend(msg.sender);
+    }
+
+    function _withdrawDividend(address to) internal {
+        uint[] storage tokens = userTokenTb[to];
         for(uint i = 0; i < tokens.length; i++){
-            _withdrawDividendOfToken(msg.sender, tokens[i]); 
+            _withdrawDividendOfToken(to, tokens[i]); 
         }
     }
 

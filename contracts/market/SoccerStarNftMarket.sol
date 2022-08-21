@@ -199,8 +199,7 @@ PausableUpgradeable{
 
     function caculateFees(uint amount) view public returns(uint, uint ){
         // exchange fee + royaltyRatio fee
-        uint txFee = amount.mul(feeRatio).div(FEE_RATIO_DIV);
-        return (txFee, amount.sub(txFee));
+        return (amount.mul(feeRatio).div(FEE_RATIO_DIV), amount.mul(royaltyRatio).div(FEE_RATIO_DIV));
     }
 
     // Owner accept the price
