@@ -41,26 +41,22 @@
   },
   "StakedSoccerStarNftV2": {
     "bsc_test": {
-      "address": "0x026e48b96CC5bb0D1F80bac277dA20596e5f3877",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0x026e48b96CC5bb0D1F80bac277dA20596e5f3877"
     }
   },
   "StakedSoccerStarNftV2Impl": {
     "bsc_test": {
-      "address": "0xa24832aFFA7666560dF12C45a3Db3e6F97Be8dbF",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0xd07f2228Bd7B359C9170Dc7d486Fe35CAB1CA67e"
     }
   },
   "StakedDividendTracker": {
     "bsc_test": {
-      "address": "0x58D93e95de59420FCbEfC2F9c7EEBE7A4075773D",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0x58D93e95de59420FCbEfC2F9c7EEBE7A4075773D"
     }
   },
   "StakedDividendTrackerImpl": {
     "bsc_test": {
-      "address": "0x225E3039744ecbAE24FEAa4750dAFF8edDFAaF9b",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0xaE98Fcf0ee97Aeb947dB977FB253AE62D54eB8Aa"
     }
   },
   "FeeCollector": {
@@ -77,7 +73,7 @@
   },
   "StakedRewardUiDataProvider": {
     "bsc_test": {
-      "address": "0x413F5A0f5013141d5985D9F4bbe2c1AeB4a6CFC6",
+      "address": "0xc61D830C16A94209F43E7465a0B889C6A888E208",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
     }
   },
