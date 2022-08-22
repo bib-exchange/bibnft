@@ -199,7 +199,7 @@ PausableUpgradeable {
     }
 
     function updateStarlevel(uint tokenId, uint starLevel) 
-    public onlyAllowProtocolToCall {
+    public onlyAllowProtocolToCall override {
         require(address(0) != ownerOf(tokenId), "INVALID_TOKEN");
         require(starLevel > 0 && starLevel <= MAX_PROPERTY_VALUE, "INVALID_TOKEN");
 

@@ -51,6 +51,8 @@ interface IStakedSoccerStarNftV2 {
     // Claim rewards
     function claimRewards() external;
 
+    function claimRewardsOnbehalfOf(address to) external;
+
     // Get user stake info by page
     function getUserStakedInfoByPage(address user,uint pageSt, uint pageSz) 
     external view returns(TokenStakedInfo[] memory userStaked);

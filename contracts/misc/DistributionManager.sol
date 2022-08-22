@@ -171,7 +171,7 @@ contract DistributionManager is OwnableUpgradeable {
           assetConfig.index,
           assetConfig.emissionPerSecond,
           assetConfig.lastUpdateTimestamp,
-          stakes[i].tokenPower
+          stakes[i].totalPower
         );
 
       accruedRewards = accruedRewards.add(
