@@ -56,7 +56,7 @@
   },
   "StakedDividendTrackerImpl": {
     "bsc_test": {
-      "address": "0xaE98Fcf0ee97Aeb947dB977FB253AE62D54eB8Aa"
+      "address": "0x57f67b65bf2E8C01D1aee8dA103338fF541Af017"
     }
   },
   "FeeCollector": {
