@@ -29,38 +29,38 @@ task('deployment', 'Deployment in bsc-test network')
     }
 
     // 1. deploy SoccerStarNft
-    await DRE.run(`deploy-${eContractid.SoccerStarNft}`, { verify });
+    // await DRE.run(`deploy-${eContractid.SoccerStarNft}`, { verify });
 
-    // 2. deploy ComposedSoccerStarNft
-    await DRE.run(`deploy-${eContractid.ComposedSoccerStarNft}`, { verify });
+    // // 2. deploy ComposedSoccerStarNft
+    // await DRE.run(`deploy-${eContractid.ComposedSoccerStarNft}`, { verify });
 
-    // 3. deploy SoccerStarNftMarket
-    await DRE.run(`deploy-${eContractid.SoccerStarNftMarket}`, { verify });
+    // // 3. deploy SoccerStarNftMarket
+    // await DRE.run(`deploy-${eContractid.SoccerStarNftMarket}`, { verify });
 
-    // 4. deploy StakedSoccerStarNftV2
-    await DRE.run(`deploy-${eContractid.StakedSoccerStarNftV2}`, { verify });
+    // // 4. deploy StakedSoccerStarNftV2
+    // await DRE.run(`deploy-${eContractid.StakedSoccerStarNftV2}`, { verify });
 
-    // 5. deploy StakedDividendTracker
-    await DRE.run(`deploy-dividend`, { verify });
+    // // 5. deploy StakedDividendTracker
+    // await DRE.run(`deploy-dividend`, { verify });
 
     // 6. deploy deploy-${StakedRewardUiDataProvider}
     await DRE.run(`deploy-${eContractid.StakedRewardUiDataProvider}`, {verify})
 
     // 7. deploy deploy-CommunityNode
-    await DRE.run(`deploy-CommunityNode`, {verify});
+    //await DRE.run(`deploy-CommunityNode`, {verify});
 
     // 1
-    await DRE.run(`initialize-${eContractid.SoccerStarNft}`, { verify });
-    // 2
-    await DRE.run(`initialize-${eContractid.ComposedSoccerStarNft}`, { verify });
-    // 3
-    await DRE.run(`initialize-${eContractid.SoccerStarNftMarket}`, { verify });
-    // 4
-    await DRE.run(`initialize-${eContractid.StakedSoccerStarNftV2}`, { verify });
-    // 5
-    await DRE.run(`initialize-dividend`, { verify });
-    6
-    await DRE.run(`initialize-CommunityNode`, {verify});
+    // await DRE.run(`initialize-${eContractid.SoccerStarNft}`, { verify });
+    // // 2
+    // await DRE.run(`initialize-${eContractid.ComposedSoccerStarNft}`, { verify });
+    // // 3
+    // await DRE.run(`initialize-${eContractid.SoccerStarNftMarket}`, { verify });
+    // // 4
+    // await DRE.run(`initialize-${eContractid.StakedSoccerStarNftV2}`, { verify });
+    // // 5
+    // await DRE.run(`initialize-dividend`, { verify });
+    // 6
+    // await DRE.run(`initialize-CommunityNode`, {verify});
 
 
     console.log(`\n✔️ Finished the deployment for ${network}. ✔️`);

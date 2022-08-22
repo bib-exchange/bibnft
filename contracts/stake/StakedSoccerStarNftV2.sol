@@ -202,8 +202,13 @@ contract StakedSoccerStarNftV2 is
     require(!NODE.isStakedAsNode(tokenId), "TOKEN_STAKED_AS_NODE");
     
     uint power = getTokenPower(tokenId);
-
     uint unclaimedRewards = _updateCurrentUnclaimedRewards(tokenId, power);
+
+    // settle rewards
+    IERC20(REWARD_TOKEN).transferFrom(
+      REWARDS_VAULT,
+      tokenStakedInfoTb[tokenId].owner, 
+      unclaimedRewards);
 
     // deducate the power
     totalPower -= power;
@@ -211,7 +216,6 @@ contract StakedSoccerStarNftV2 is
     userTotalPower[msg.sender] -= power;
 
     tokenStakedInfoTb[tokenId].cooldown = block.timestamp;
-    tokenStakedInfoTb[tokenId].unclaimed = unclaimedRewards;
     
     emit Redeem(msg.sender, tokenId);
 
@@ -225,12 +229,6 @@ contract StakedSoccerStarNftV2 is
   function withdraw(uint tokenId) public override whenNotPaused{
     require(getTokenOwner(tokenId) == msg.sender, "NOT_TOKEN_OWNER");
     require(isWithdrawAble(tokenId), "NOT_WITHDRAWABLE");
-
-    // settle rewards
-    IERC20(REWARD_TOKEN).transferFrom(
-      REWARDS_VAULT,
-      tokenStakedInfoTb[tokenId].owner, 
-      tokenStakedInfoTb[tokenId].unclaimed);
     
     // refund token
     IERC721(address(STAKED_TOKEN)).safeTransferFrom(
@@ -334,10 +332,28 @@ contract StakedSoccerStarNftV2 is
     uint unclaimedRewards = 0;
     uint[] storage tokenIds = userStakedTokenTb[msg.sender];
     for(uint i = 0; i < tokenIds.length; i++){
-      unclaimedRewards = _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
-      emit ClaimReward(msg.sender, tokenIds[i], unclaimedRewards);
+      // skip redeeming
+      if(isStaked(tokenIds[i])){
+        unclaimedRewards = _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
+        emit ClaimReward(msg.sender, tokenIds[i], unclaimedRewards);
+      }
     }
     REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, msg.sender, unclaimedRewards);
+  }
+
+    /**
+   * @dev Claims reward to the specific token
+   **/
+  function claimRewardsOnbehalfOf(address to) external override whenNotPaused{
+    uint unclaimedRewards = 0;
+    uint[] storage tokenIds = userStakedTokenTb[to];
+    for(uint i = 0; i < tokenIds.length; i++){
+      if(isStaked(tokenIds[i])){
+        unclaimedRewards = _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
+        emit ClaimReward(to, tokenIds[i], unclaimedRewards);
+      }
+    }
+    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, to, unclaimedRewards);
   }
 
   /**
@@ -355,6 +371,11 @@ contract StakedSoccerStarNftV2 is
 
   // Get unclaimed rewards by the specified tokens
   function getUnClaimedRewardsByToken(uint tokenId) public view override returns(uint){
+    // skip over redeeming
+    if(!isStaked(tokenId)){
+      return 0;
+    }
+
     DistributionTypes.UserStakeInput[] memory tokenStakeInputs =
       new DistributionTypes.UserStakeInput[](1);
 
@@ -373,14 +394,15 @@ contract StakedSoccerStarNftV2 is
     uint[] memory unclaimedRewards = new uint[](tokenIds.length);
     DistributionTypes.UserStakeInput[] memory tokenStakeInputs =
       new DistributionTypes.UserStakeInput[](1);
-
     for(uint i = 0; i < tokenIds.length; i++){
-      tokenStakeInputs[0] = DistributionTypes.UserStakeInput({
-            underlyingAsset: address(this),
-            tokenPower: getTokenPower(tokenIds[i]),
-            totalPower: totalPower
-      });
-      unclaimedRewards[i] = _getUnclaimedRewards(tokenIds[i], tokenStakeInputs);
+      if(isStaked(tokenIds[i])){
+        tokenStakeInputs[0] = DistributionTypes.UserStakeInput({
+              underlyingAsset: address(this),
+              tokenPower: getTokenPower(tokenIds[i]),
+              totalPower: totalPower
+        });
+        unclaimedRewards[i] = _getUnclaimedRewards(tokenIds[i], tokenStakeInputs);
+      }
     }
 
     return unclaimedRewards;
@@ -395,7 +417,9 @@ contract StakedSoccerStarNftV2 is
     uint unclaimedRewards = 0;
     uint[] storage userStakedTokens= userStakedTokenTb[staker];
     for(uint i = 0; i < userStakedTokens.length; i++){
-      unclaimedRewards += getUnClaimedRewardsByToken(userStakedTokens[i]);
+      if(isStaked(userStakedTokens[i])){
+        unclaimedRewards += getUnClaimedRewardsByToken(userStakedTokens[i]);
+      }
     }
     return unclaimedRewards;
   }
