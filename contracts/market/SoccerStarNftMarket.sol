@@ -148,6 +148,7 @@ PausableUpgradeable{
    
         // delegate token to protocol
         IERC721(address(issuer)).transferFrom(msg.sender, address(this), tokenId);
+        require(isOwner(issuer, tokenId, address(this)), "ERC721_FALED_TRANSFER");
 
         // record order
         Order memory order = Order({
@@ -350,6 +351,7 @@ PausableUpgradeable{
         } else {
             IERC721(address(offer.issuer)).transferFrom(address(this), offer.buyer, offer.tokenId);
         }
+        require(isOwner(offer.issuer, offer.tokenId, offer.buyer), "ERC721_FALED_TRANSFER");
 
         emit MakeDeal(
             msg.sender,
