@@ -11,6 +11,7 @@ import {
   getBIBStakingImpl,
   getSoccerStarNft,
   getStakedSoccerStarNftV2,
+  getSoccerStarNftMarket,
   getContract
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
@@ -38,6 +39,7 @@ task(`initialize-CommunityNode`, `Initialize the CommunityNode proxy contract`)
     const admin = await getBIBAdminPerNetwork(network);
     const soccerStarNft = await getSoccerStarNft();
     const soccerStakedNft = await getStakedSoccerStarNftV2();
+    const soccerStartNftMarket = await getSoccerStarNftMarket();
 
     const bibNode = await getBIBNode();
     const bibNodeImpl = await getBIBNodeImpl();
@@ -75,7 +77,8 @@ task(`initialize-CommunityNode`, `Initialize the CommunityNode proxy contract`)
         soccerStakedNft.address,
         soccerStarNft.address,
         await getBIBTokenPerNetwork(network),
-        bibStaking.address
+        bibStaking.address,
+        soccerStartNftMarket.address
     ]);
     await waitForTx(
       await bibNodeProxy['initialize(address,address,bytes)'](
@@ -105,4 +108,12 @@ task(`initialize-CommunityNode`, `Initialize the CommunityNode proxy contract`)
       )
     );
     console.log(`\tFinished ${BIBStaking} proxy initialize`);
+
+    // 1 set dividend controller
+    console.log(`\tConfig ${BIBDividend} controller`);
+    await waitForTx(
+      await bibDividend.setController(
+        bibStaking.address
+      )
+    );
   });
