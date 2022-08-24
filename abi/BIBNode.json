@@ -499,7 +499,7 @@
         "type": "uint256"
       }
     ],
-    "name": "getTicketProperty",
+    "name": "getCardProperty",
     "outputs": [
       {
         "components": [
@@ -557,6 +557,11 @@
       {
         "internalType": "address",
         "name": "_bibStaking",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_stakedSoccerStarNft",
         "type": "address"
       }
     ],
@@ -911,6 +916,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "stakedSoccerStarNft",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -1028,7 +1046,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "tokenId",
+        "name": "_nftId",
         "type": "uint256"
       }
     ],

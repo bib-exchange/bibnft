@@ -7,7 +7,8 @@ import {
   getSoccerStarNftImpl,
   getContract,
   getComposedSoccerStarNft,
-  getStakedSoccerStarNftV2
+  getStakedSoccerStarNftV2,
+  getBIBNode
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
@@ -19,7 +20,7 @@ import { ZERO_ADDRESS,
   getBIBAdminPerNetwork
  } from '../../helpers/constants';
 
-const { SoccerStarNft, ComposedSoccerStarNft, StakedSoccerStarNftV2 } = eContractid;
+const { SoccerStarNft, ComposedSoccerStarNft, StakedSoccerStarNftV2, BIBNode } = eContractid;
 
 task(`initialize-${SoccerStarNft}`, `Initialize the ${SoccerStarNft} proxy contract`)
   .setAction(async ({}, localBRE) => {
@@ -68,6 +69,12 @@ task(`initialize-${SoccerStarNft}`, `Initialize the ${SoccerStarNft} proxy contr
     const stakedNft = await getStakedSoccerStarNftV2();
     await waitForTx(
       await soccerStarNft.setAllowProtocolToCall(stakedNft.address, true)
+    );
+
+    console.log(`\tAllow ${BIBNode} to call ${SoccerStarNft} proxy`);
+    const bibNode = await getBIBNode();
+    await waitForTx(
+      await soccerStarNft.setAllowProtocolToCall(bibNode.address, true)
     );
 
     console.log(`\tFinished ${SoccerStarNft} proxy initialize`);
