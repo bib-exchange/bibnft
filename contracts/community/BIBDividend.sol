@@ -19,6 +19,7 @@ contract BIBDividend is OwnableUpgradeable{
     event DripRateChanged(
         uint256 dripRatePerSecond
     );
+    event NodeRateChange(uint256 nodeRate);
 
     event Withdrawn(
         address indexed to,
@@ -55,7 +56,7 @@ contract BIBDividend is OwnableUpgradeable{
     address public controller;
     address public dividendSetter;
     uint256 public dripRatePerSecond;
-    uint256 public nodeRate = 20;
+    uint256 public nodeRate;
     // drip per second
     uint256 public userExchangeRateMantissa;
     uint256 public nodeExchangeRateMantissa;
@@ -79,8 +80,8 @@ contract BIBDividend is OwnableUpgradeable{
     IterableMapping.Map private tokenHoldersMap;
     uint256 public lastProcessedIndex;
     mapping (address => uint256) public lastClaimTimes;
-    uint256 public claimWait = 1 hours;
-    uint256 public immutable minimumTokenBalanceForDividends = 1e5 * (10**9);
+    uint256 public claimWait;
+    uint256 public minimumTokenBalanceForDividends;
     event ClaimWaitUpdated(uint256 indexed newValue, uint256 indexed oldValue);
     
     function initialize (
@@ -91,6 +92,10 @@ contract BIBDividend is OwnableUpgradeable{
         lastDripTimestamp = _currentTime();
         asset = _asset;
         setDripRatePerSecond(_dripRatePerSecond);
+
+        nodeRate = 20;
+        minimumTokenBalanceForDividends = 1e5 * (10**9);
+        claimWait = 1 hours;
     }
 
     function setController(address _cntr) external onlyOwner {
@@ -171,7 +176,9 @@ contract BIBDividend is OwnableUpgradeable{
         uint256[] storage list = userStakeStates[user].nodeList;
         uint256 newTokens = userStakeStates[user].unClaim;
         userStakeStates[user].unClaim = 0;
-        for(uint256 _i=0;_i<list.length;_i++){
+        uint256 _i = list.length;
+        while(_i > 0){
+            _i = _i - 1;
             // drip node exchange rate mantissa
             _captureNewTokensForUser(userNodeStates[list[_i]], userNodeStates[list[_i]].balance, userExchangeRateMantissa, userDividendPerShare);
 
@@ -181,6 +188,12 @@ contract BIBDividend is OwnableUpgradeable{
                 userNodeStates[list[_i]].lastExchangeRateMantissa, userNodeStates[list[_i]].lastDividendPerShare);
             newTokens = _userExState.unClaim.add(newTokens);
             _userExState.unClaim = 0;
+
+            if (userNodeStates[list[_i]].balance == 0) {
+                list[_i] = list[list.length-1];
+                list.pop();
+                delete userStakeStates[user].stakeDetail[list[_i]];
+            }
         }
         userStakeStates[user].totalClaim = userStakeStates[user].totalClaim.add(newTokens);
         asset.transfer(user, newTokens);
@@ -308,8 +321,17 @@ contract BIBDividend is OwnableUpgradeable{
         tokenHoldersMap.set(nodeOwner, amount);
     }
 
+    function disbandNode(address nodeOwner, uint256 ticketId) external onlyController {
+        nodeClaim(nodeOwner);
+        nodeTotalStake = nodeTotalStake.sub(nodeStates[nodeOwner].balance);
+        delete nodeStates[nodeOwner];
+
+        _captureNewTokensForUser(userNodeStates[ticketId], userNodeStates[ticketId].balance, userExchangeRateMantissa, userDividendPerShare);
+        userNodeStates[ticketId].balance = 0;
+    }
+
     function _captureNewTokensForUser(ExState storage userState, uint256 _balance, uint256 _exchangeRateMantissa, uint256 _dividendPerShare) private returns (uint256){
-        if (_exchangeRateMantissa == userState.lastExchangeRateMantissa) {
+        if (_exchangeRateMantissa == userState.lastExchangeRateMantissa || _balance == 0) {
             return 0;
         }
         uint256 deltaExchangeRateMantissa = uint256(_exchangeRateMantissa).sub(userState.lastExchangeRateMantissa);
@@ -332,6 +354,13 @@ contract BIBDividend is OwnableUpgradeable{
         emit DripRateChanged(dripRatePerSecond);
     }
 
+    function setNodeRate(uint256 _nodeRate) external onlyOwner {
+        require(_nodeRate > 0, "TokenFaucet/nodeRate-gt-zero");
+        drip();
+        nodeRate = _nodeRate;
+        emit NodeRateChange(nodeRate);
+    }    
+    
     function updateClaimWait(uint256 newClaimWait) public onlyOwner {
         require(newClaimWait >= 3600 && newClaimWait <= 86400, "Token_Dividend_Tracker: claimWait must be updated to between 1 and 24 hours");
         require(newClaimWait != claimWait, "Token_Dividend_Tracker: Cannot update claimWait to same value");
@@ -465,15 +494,18 @@ contract BIBDividend is OwnableUpgradeable{
 
     function getUserApr(address _user) external view returns(uint256) {
         if (userNodeTotalStake == 0) return 0;
-        uint256 _userTotalStake = 0;
+        uint256 _userStakedNodeTotalStake = 0;
         uint256 _userStake = 0;
         uint256[] storage list = userStakeStates[_user].nodeList;
         for(uint256 _i=0;_i<list.length;_i++){
+            if (userNodeStates[list[_i]].balance == 0 ) continue;
             ExState storage _userExState = userStakeStates[_user].stakeDetail[list[_i]];
-            _userTotalStake = _userExState.balance.mul(nodeWeight[list[_i]]).div(100).add(_userTotalStake);
+            _userStakedNodeTotalStake = userNodeStates[list[_i]].balance.mul(nodeWeight[list[_i]]).div(100).add(_userStakedNodeTotalStake);
             _userStake = _userStake.add(_userExState.balance);
         }
-        return _userTotalStake.div(userNodeTotalStake).mul(totalDrip.add(totalDividendsDistributed)).div(_userStake);
+        if (_userStake == 0) return 0;
+        uint256 _allReward = dripRatePerSecond.mul(1 days);
+        return _userStakedNodeTotalStake.mul(_allReward).mul(3650000).div(userNodeTotalStake).div(_userStake);
     }
 
     function _getUserAllRewards(ExState memory userState, uint256 _exchangeRateMantissa, uint256 _dividendPerShare) public pure returns(uint256) {

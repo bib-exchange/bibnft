@@ -13,8 +13,8 @@
   },
   "InitializableAdminUpgradeabilityProxy": {
     "bsc_test": {
-      "address": "0x6d4973Af4Bc9f23E80EAa697A62FE71fcc706d16",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0x9cD6467F7586ae059797810B0874DcE76F00e0c7",
+      "deployer": "0xc5E10c652bc3939dd7d0e2C541b13F902219d91e"
     }
   },
   "ComposedSoccerStarNft": {
@@ -79,44 +79,44 @@
   },
   "BIBNode": {
     "bsc_test": {
-      "address": "0x4ed17CF6a73f9B9F0DdBaCea0d1D51D09c2CC5C0",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0x6100f6c18C27D7b650abE4D56bCd3c45002994Ed",
+      "deployer": "0xc5E10c652bc3939dd7d0e2C541b13F902219d91e"
     }
   },
   "BIBNodeImpl": {
     "bsc_test": {
-      "address": "0xa5AD21B77e8892e5FAccc896a689571342B5BDea",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0xf247BA6e82413BB904A784EF48E42164F8082B2D",
+      "deployer": "0xc5E10c652bc3939dd7d0e2C541b13F902219d91e"
     }
   },
   "IterableMapping": {
     "bsc_test": {
-      "address": "0x04F56829bE08A6854C9f29E3905C855dF76EE3E6",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0x665C4095689fad96A6C13490F667320A9EA22340",
+      "deployer": "0xc5E10c652bc3939dd7d0e2C541b13F902219d91e"
     }
   },
   "BIBDividendImpl": {
     "bsc_test": {
-      "address": "0x8CBAEb6FdF780Da0e1b62e1a0FF06a74219dB249",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0xDd940aeEc110c48D6915F4defE123FC41036E6Df",
+      "deployer": "0xc5E10c652bc3939dd7d0e2C541b13F902219d91e"
     }
   },
   "BIBDividend": {
     "bsc_test": {
-      "address": "0x0d75952aF783f29C5d3C8B2d6B5C0E622ca5d9AF",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0xa53eaA08b74Be8C4eD4e5D4C581c8Be2C9537E6F",
+      "deployer": "0xc5E10c652bc3939dd7d0e2C541b13F902219d91e"
     }
   },
   "BIBStaking": {
     "bsc_test": {
-      "address": "0x6d4973Af4Bc9f23E80EAa697A62FE71fcc706d16",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0x9cD6467F7586ae059797810B0874DcE76F00e0c7",
+      "deployer": "0xc5E10c652bc3939dd7d0e2C541b13F902219d91e"
     }
   },
   "BIBStakingImpl": {
     "bsc_test": {
-      "address": "0x54d43Ff6DED4653f76929287A93E4db6A7a2b78e",
-      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+      "address": "0x13bF4353465d6B2B2B693F6000b7115455Eff6a1",
+      "deployer": "0xc5E10c652bc3939dd7d0e2C541b13F902219d91e"
     }
   }
 }
