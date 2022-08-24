@@ -200,7 +200,6 @@ contract StakedSoccerStarNftV2 is
 
     // can't allow reddem if the nft is stake as a node
     require(!NODE.isStakedAsNode(tokenId), "TOKEN_STAKED_AS_NODE");
-
     uint power = getTokenPower(tokenId);
     uint unclaimedRewards = _updateCurrentUnclaimedRewards(tokenId, power);
 
