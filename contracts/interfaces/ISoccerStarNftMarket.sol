@@ -105,6 +105,9 @@ interface ISoccerStarNftMarket {
     // Buyer udpate offer bid price
     function updateOfferPrice(uint offerId, uint price) external payable;
 
-    // Buyer cancle the specific order
+    // Buyer cancle the specific offer
     function cancelOffer(uint offerId) external;
+
+    // Buyer cancle the offers by the specific issuer
+    function cancelAllOffersByIssuer(address issuer) external;
 }

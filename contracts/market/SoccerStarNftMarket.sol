@@ -58,6 +58,9 @@ PausableUpgradeable{
     // mapping issurer=>token=>offer_ids
     mapping(address=>mapping(uint=>uint[])) public tokenOffersTb;
 
+    // mapping user=>offer_ids
+    mapping(address=>uint[]) public userOffersTb;
+
     function initialize(
         address _tokenContract,
         address _bibContract,
@@ -473,6 +476,7 @@ PausableUpgradeable{
         });
         offerTb[offer.offerId] = offer;
         tokenOffersTb[issuer][tokenId].push(offer.offerId);
+        userOffersTb[msg.sender].push(offer.offerId);
 
         emit MakeOffer(msg.sender, offer.issuer, offer.tokenId, 
         offer.offerId, offer.payMethod, offer.bid, offer.mt, offer.expiration);
@@ -520,6 +524,7 @@ PausableUpgradeable{
     function _cancleOffer(uint offerId) internal {
         Offer storage offer = offerTb[offerId];
 
+        // remove from token offer tb
         uint[] storage offers = tokenOffersTb[offer.issuer][offer.tokenId];
         for(uint i = 0; i < offers.length; i++){
            if(offerTb[offers[i]].offerId == offerId){
@@ -529,6 +534,16 @@ PausableUpgradeable{
            }
         }
         delete offerTb[offerId];
+
+        // remove from user offers tb
+        uint[] storage offerIds = userOffersTb[offer.buyer];
+        for(uint i = 0; i < offerIds.length; i++){
+           if(offerIds[i] == offerId){
+                offerIds[i] = offerIds[offerIds.length - 1];
+                offerIds.pop();
+                break;
+           }
+        }
 
         emit CancelOffer(msg.sender, offerId);
     }
@@ -547,5 +562,38 @@ PausableUpgradeable{
         }
 
         _cancleOffer(offerId);
+    }
+
+    function cancelAllOffersByIssuer(address issuer)
+    public override whenNotPaused {
+        uint[] storage offerIds = userOffersTb[msg.sender];
+
+        for(uint i = 0; i < offerIds.length;){
+            Offer storage offer = offerTb[offerIds[i]];
+
+            if(offer.issuer != issuer) {
+                i++;
+                continue;
+            }
+
+            // remove from offersByIssuer
+            uint[] storage offersByIssuer = tokenOffersTb[offer.issuer][offer.tokenId];
+            for(uint j = 0; j < offersByIssuer.length; j++){
+                if(offersByIssuer[j] == offerIds[i]){
+                    offersByIssuer[j] = offersByIssuer[offersByIssuer.length - 1];
+                    offersByIssuer.pop();
+                    break;
+                }
+            }
+
+            // remove form offerTab
+            delete offerTb[offerIds[i]];
+
+            emit CancelOffer(msg.sender, offerIds[i]);
+
+            // remove from userOffersTb
+            offerIds[i] = offerIds[offerIds.length - 1];
+            offerIds.pop();
+        }
     }
 }
