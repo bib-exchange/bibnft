@@ -200,7 +200,6 @@ contract StakedSoccerStarNftV2 is
 
     // can't allow reddem if the nft is stake as a node
     require(!NODE.isStakedAsNode(tokenId), "TOKEN_STAKED_AS_NODE");
-    
     uint power = getTokenPower(tokenId);
     uint unclaimedRewards = _updateCurrentUnclaimedRewards(tokenId, power);
 
@@ -334,7 +333,7 @@ contract StakedSoccerStarNftV2 is
     for(uint i = 0; i < tokenIds.length; i++){
       // skip redeeming
       if(isStaked(tokenIds[i])){
-        unclaimedRewards = _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
+        unclaimedRewards += _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
         emit ClaimReward(msg.sender, tokenIds[i], unclaimedRewards);
       }
     }
@@ -349,7 +348,7 @@ contract StakedSoccerStarNftV2 is
     uint[] storage tokenIds = userStakedTokenTb[to];
     for(uint i = 0; i < tokenIds.length; i++){
       if(isStaked(tokenIds[i])){
-        unclaimedRewards = _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
+        unclaimedRewards += _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
         emit ClaimReward(to, tokenIds[i], unclaimedRewards);
       }
     }
