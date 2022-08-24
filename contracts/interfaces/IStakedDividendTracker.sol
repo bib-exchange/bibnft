@@ -6,6 +6,5 @@ interface IStakedDividendTracker {
     function dividendOfToken(uint tokenId) external view returns(uint256);
     function dividendOf(address user) external view returns(uint256);
     function withdrawDividendOnbehalfOf(address to) external;
-    function withdrawDividendOfToken(uint tokenId) external;
     function withdrawDividend() external;
 }
