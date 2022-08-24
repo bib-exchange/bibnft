@@ -103,22 +103,6 @@ IBalanceHook {
 
     /// @notice Withdraws the ether distributed to the sender.
     /// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
-    function withdrawDividendOfToken(uint tokenId) public whenNotPaused{
-        uint[] storage tokenIds = userTokenTb[msg.sender];
-        uint index = tokenIds.length;
-        for(uint i; i < tokenIds.length; i++){
-            if(tokenId == tokenIds[i]){
-                index = i;
-                break;
-            }
-        }
-        require(index <  tokenIds.length, "TOKEN_NOT_BELONG_TO_USER");
-    
-        _withdrawDividendOfToken(msg.sender, tokenId);
-    }
-
-    /// @notice Withdraws the ether distributed to the sender.
-    /// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
     function withdrawDividendOnbehalfOf(address to) public whenNotPaused{
         _withdrawDividend(to);
     }
@@ -129,27 +113,26 @@ IBalanceHook {
 
     function _withdrawDividend(address to) internal {
         uint[] storage tokens = userTokenTb[to];
+        uint totalWithdrawableDividend;
         for(uint i = 0; i < tokens.length; i++){
-            _withdrawDividendOfToken(to, tokens[i]); 
+            uint _withdrawableDividend = _withdrawWithoutTransfer(tokens[i]);
+            emit DividendWithdrawn(to, tokens[i], _withdrawableDividend);
+            totalWithdrawableDividend += _withdrawableDividend;
+        }
+
+        bool success = rewardToken.transfer(to, totalWithdrawableDividend);
+        if(!success){
+            revert("ERC20: transfer failed");
         }
     }
 
-    function _withdrawDividendOfToken(address user, uint256 tokenId) 
+    function _withdrawWithoutTransfer(uint256 tokenId) 
     internal returns (uint256) {
-        uint256 _withdrawableDividend = withdrawableDividendOf(tokenId);
+       uint256 _withdrawableDividend = withdrawableDividendOf(tokenId);
         if (_withdrawableDividend > 0) {
             withdrawnDividends[tokenId] = withdrawnDividends[tokenId].add(_withdrawableDividend);
-            emit DividendWithdrawn(user, tokenId, _withdrawableDividend);
-            bool success = rewardToken.transfer(user, _withdrawableDividend);
-
-            if(!success) {
-                withdrawnDividends[tokenId] = withdrawnDividends[tokenId].sub(_withdrawableDividend);
-                return 0;
-            }
-
             return _withdrawableDividend;
         }
-
         return 0;
     }
 }
