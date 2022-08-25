@@ -6,6 +6,24 @@
     {
       "inputs": [
         {
+          "internalType": "address",
+          "name": "nodeOwner",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "ticketId",
+          "type": "uint256"
+        }
+      ],
+      "name": "disbandNode",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "uint256",
           "name": "gas",
           "type": "uint256"
