@@ -10,6 +10,8 @@ export enum eContractid {
   IERC20Detailed = 'IERC20Detailed',
   SoccerStarNft = "SoccerStarNft",
   SoccerStarNftImpl = "SoccerStarNftImpl",
+  DividendCollector = "DividendCollector",
+  DividendCollectorImpl = "DividendCollectorImpl",
   ComposedSoccerStarNft = "ComposedSoccerStarNft",
   ComposedSoccerStarNftImpl = "ComposedSoccerStarNftImpl",
   SoccerStarNftMarket = "SoccerStarNftMarket",

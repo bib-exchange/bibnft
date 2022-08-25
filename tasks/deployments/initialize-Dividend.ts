@@ -10,6 +10,7 @@ import {
   getStakedSoccerStarNftV2,
   getSoccerStarNftMarket,
   getBIBDividend,
+  getDividendCollector,
   getContract
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
@@ -76,7 +77,7 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
       await getBIBTokenPerNetwork(network),
       await getBUSDTokenPerNetwork(network),
       stakeDividendTracker.address,
-      ZERO_ADDRESS,
+      (await getDividendCollector()).address,
       bibDividend.address,
     ]);
 
@@ -97,40 +98,21 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
       )
     );
 
-    //  2 set fee collector receiver
-    console.log(`\tset ${FeeCollector} fee receiver to ${StakedDividendTracker}`);
-    await waitForTx(
-      await feeCollector.setFeeReceiver(
-          stakeDividendTracker.address,
-          ZERO_ADDRESS, // TODO: replace with final addresses
-          ZERO_ADDRESS // TODO: replace with final addresses
-        ));
-
-    // 3. allow fee collecter to distribute dividend
+    // 2. allow fee collecter to distribute dividend
     console.log(`\tallow ${FeeCollector} to call ${StakedDividendTracker} to distribute dividend`);
     await waitForTx(
       await stakeDividendTracker.setAllowToCall(feeCollector.address, true));
     
-    // 4. set market fee collector
-    console.log(`\tbind ${FeeCollector}  to ${SoccerStarNftMarket}`);
-    const soccerStarNftMarket = await getSoccerStarNftMarket();
-    await waitForTx(
-      await soccerStarNftMarket.setFeeCollector(feeCollector.address));
-
-    // 5. allow the market to distribute dividend to the fee collector
+    // 3. allow the market to distribute dividend to the fee collector
     console.log(`\tadd ${SoccerStarNftMarket} to ${FeeCollector} as allow caller`);
+    const soccerStarNftMarket = await getSoccerStarNftMarket();
     await waitForTx(
       await feeCollector.setAllowToCall(
           soccerStarNftMarket.address,
           true));
 
-    // 6.  set staked balance hook to the dividend
-    const stakedSoccerStarNftV2= await getStakedSoccerStarNftV2();
-    console.log(`\tbind ${StakedDividendTracker} tracker to ${StakedSoccerStarNftV2}`);
-    await waitForTx(
-      await stakedSoccerStarNftV2.setBalanceHook(stakeDividendTracker.address));
-
-    // 7. allow staked module to update balance
+    // 4. allow staked module to update balance
+    const stakedSoccerStarNftV2 = await getStakedSoccerStarNftV2();
     console.log(`\tallow ${StakedDividendTracker} to call ${StakedDividendTracker}`);
     await waitForTx(
       await stakeDividendTracker.setAllowToCall(stakedSoccerStarNftV2.address, true));

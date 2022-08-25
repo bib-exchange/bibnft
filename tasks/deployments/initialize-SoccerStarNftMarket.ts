@@ -6,6 +6,7 @@ import {
   getSoccerStarNftMarket,
   getSoccerStarNftMarketImpl,
   getSoccerStarNft,
+  getFeeCollector,
   getContract
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
@@ -17,7 +18,7 @@ import { ZERO_ADDRESS,
   getBIBAdminPerNetwork
  } from '../../helpers/constants';
 
-const { SoccerStarNftMarket } = eContractid;
+const { SoccerStarNftMarket, FeeCollector } = eContractid;
 
 task(`initialize-${SoccerStarNftMarket}`, `Initialize the ${SoccerStarNftMarket} proxy contract`)
   .setAction(async ({}, localBRE) => {
@@ -56,6 +57,12 @@ task(`initialize-${SoccerStarNftMarket}`, `Initialize the ${SoccerStarNftMarket}
         encodedInitialize
       )
     );
+
+    // 3. set market fee collector
+    console.log(`\tbind ${FeeCollector}  to ${SoccerStarNftMarket}`);
+    const feeCollector = await getFeeCollector();
+    await waitForTx(
+      await soccerStarNftMarketNft.setFeeCollector(feeCollector.address));
 
     console.log(`\tFinished ${SoccerStarNftMarket} proxy initialize`);
   });

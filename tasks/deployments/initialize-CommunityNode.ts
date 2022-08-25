@@ -10,6 +10,7 @@ import {
   getBIBStaking,
   getBIBStakingImpl,
   getSoccerStarNft,
+  getFeeCollector,
   getStakedSoccerStarNftV2,
   getSoccerStarNftMarket,
   getContract
@@ -24,7 +25,7 @@ import { ZERO_ADDRESS,
   DRIP_RATE_PER_SECOND
  } from '../../helpers/constants';
 
-const { BIBDividend, BIBNode, BIBStaking } = eContractid;
+const { BIBDividend, BIBNode, BIBStaking , FeeCollector} = eContractid;
 
 task(`initialize-CommunityNode`, `Initialize the CommunityNode proxy contract`)
   .setAction(async ({}, localBRE) => {
@@ -115,5 +116,12 @@ task(`initialize-CommunityNode`, `Initialize the CommunityNode proxy contract`)
       await bibDividend.setController(
         bibStaking.address
       )
+    );
+
+    // 2 allow fee collector to call
+    const feeCollector = await getFeeCollector();
+    console.log(`\tAllow ${FeeCollector} to call ${BIBDividend}`)
+    await waitForTx(
+      await bibDividend.setDividendSetter(feeCollector.address)
     );
   });

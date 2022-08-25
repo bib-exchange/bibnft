@@ -27,6 +27,7 @@ import {StakedRewardUiDataProvider} from '../types/StakedRewardUiDataProvider';
 import {BibNode} from '../types/BibNode';
 import {BibDividend} from '../types/BibDividend';
 import {BibStaking} from '../types/BibStaking';
+import {DividendCollector} from '../types/DividendCollector';
 import { BibDividendLibraryAddresses, BibDividend__factory } from '../types/factories/BibDividend__factory';
 
 export const registerContractInJsonDb = async (contractId: string, contractInstance: Contract) => {
@@ -148,6 +149,17 @@ export const deploySoccerStarNft = async (verify?: boolean) => {
   const id = eContractid.SoccerStarNft;
   const args: string[] = [];
   const instance = await deployContract<SoccerStarNft>(id, args);
+  await instance.deployTransaction.wait();
+  if (verify) {
+    await verifyContract(id, instance.address, args);
+  }
+  return instance;
+};
+
+export const deployDividendCollector = async (verify?: boolean) => {
+  const id = eContractid.DividendCollector;
+  const args: string[] = [];
+  const instance = await deployContract<DividendCollector>(id, args);
   await instance.deployTransaction.wait();
   if (verify) {
     await verifyContract(id, instance.address, args);
@@ -409,6 +421,20 @@ export const getFeeCollectorImpl = async (address?: tEthereumAddress) => {
   return await getContract<FeeCollector>(
     eContractid.FeeCollector,
     address || (await getDb().get(`${eContractid.FeeCollectorImpl}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getDividendCollector = async (address?: tEthereumAddress) => {
+  return await getContract<DividendCollector>(
+    eContractid.DividendCollector,
+    address || (await getDb().get(`${eContractid.DividendCollector}.${DRE.network.name}`).value()).address
+  );
+};
+
+export const getDividendCollectorImpl = async (address?: tEthereumAddress) => {
+  return await getContract<DividendCollector>(
+    eContractid.DividendCollector,
+    address || (await getDb().get(`${eContractid.DividendCollectorImpl}.${DRE.network.name}`).value()).address
   );
 };
 

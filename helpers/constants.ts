@@ -54,7 +54,7 @@ getParamPerNetwork<tEthereumAddress>(
   {
     [eEthereumNetwork.coverage]: ZERO_ADDRESS,
     [eEthereumNetwork.hardhat]: '0x9dA2E2a429A8233f683AE0b7414862f390C7eE9C',
-    [eEthereumNetwork.bsc_test]: '0x9dA2E2a429A8233f683AE0b7414862f390C7eE9C', // TODO: need to replace
+    [eEthereumNetwork.bsc_test]: '0x1180fd0Be0559C8300fa6aD88E3348dB418DBEfF', // TODO: need to replace
     [eEthereumNetwork.bsc]: ZERO_ADDRESS,
   },
   network
