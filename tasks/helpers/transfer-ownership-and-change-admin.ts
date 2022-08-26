@@ -41,6 +41,10 @@ const listOfOwnableContractsForProduction = [
   {
     deployedName: "BIBStaking",
     artifactName: "BIBStaking"
+  },
+  {
+    deployedName: "DividendCollector",
+    artifactName: "DividendCollector"
   }
 ];
 
