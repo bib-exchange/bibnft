@@ -5,18 +5,22 @@ pragma solidity >=0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import {SafeMath} from "../libs/SafeMath.sol";
-import {SafeCast} from "../libs/SafeCast.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import {SafeMath} from "../lib/SafeMath.sol";
+import {SafeCast} from "../lib/SafeCast.sol";
 import {IComposedSoccerStarNft} from "../interfaces/IComposedSoccerStarNft.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 
-contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
+contract ComposedSoccerStarNft is 
+IComposedSoccerStarNft, 
+OwnableUpgradeable, 
+PausableUpgradeable {
     using SafeMath for uint;
 
-    address constant public BLOCK_HOLE = address(0x0000000000000000000000000000000000000001);
+    address constant public BLACK_HOLE = address(0x0000000000000000000000000000000000000001);
    
     ISoccerStarNft public tokenContract;
     IERC20 public bibContract;
@@ -24,15 +28,16 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
     IBIBOracle public priceOracle;
 
     // fill with default
-    uint[12] public feeRates = [360000,  730000,    1200000, 2200000,
-                      1800000, 3650000,   6000000, 11000000,
-                      9000000, 18250000,  30000000, 55000000];
+    uint[12] public feeRates;
 
     address public treasury;
 
     uint constant public MAX_STARLEVEL = 4;
     uint constant public STARLEVEL_RANGE = 4;
     uint constant public ORACLE_PRECISION = 1e18;
+
+    uint public startup;
+    uint public deadline;
 
     event TokenContractChanged(address sender, address oldValue, address newValue);
     event BIBContractChanged(address sender, address oldValue, address newValue);
@@ -41,18 +46,37 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
     event PriceOracleChanged(address sender, address oldValue, address newValue);
     event FeeRateChanged(address sender, uint[12] oldValue, uint[12] newValue);
 
-    constructor(
+    function initialize(
     address _tokenContract,
     address _bibContract,
     address _busdContract,
     address _treasury,
     address _priceOracle
-    ){
+    ) public reinitializer(1) {
         tokenContract = ISoccerStarNft(_tokenContract);
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
         treasury = _treasury;
         priceOracle = IBIBOracle(_priceOracle);
+
+        feeRates = [360000,  730000,  1200000, 2200000,
+                    1800000, 3650000, 6000000, 11000000,
+                    9000000, 18250000,30000000,55000000];
+
+        __Pausable_init();
+        __Ownable_init();
+    }
+
+    function setActivityTimeline(uint _startup, uint _deadline) public onlyOwner{
+        require(_startup > block.timestamp, "STARTUP_TOO_EARLY");
+        require(_deadline > _startup, "INVALID_DEADLINE");
+
+        startup = _startup;
+        deadline = _deadline;
+    }
+
+    function isActivityOpen() public view returns(bool){
+        return block.timestamp >= startup && block.timestamp < deadline;
     }
 
     function setTokenContract(address _tokenContract) public onlyOwner{
@@ -98,7 +122,7 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
     ComposeMode mode, 
     uint extralToken, 
     PayMethod payMethod
-    ) public override{
+    ) public override whenNotPaused{
         require(4 == tokenIds.length, "NEED_FOUR_TOKENS");
         require(validToken(tokenIds[0], tokenIds), "NEED_SAME_TOKEN_PROPER");
         require(validStarLevel(tokenIds[0]), "NEED_LOWER_STARLEVEL");
@@ -108,30 +132,35 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
 
         // burn all
         for(uint i = 0; i < tokenIds.length; i++){
-            IERC721(address(tokenContract)).transferFrom(msg.sender, BLOCK_HOLE, tokenIds[i]);
+            IERC721(address(tokenContract)).transferFrom(msg.sender, BLACK_HOLE, tokenIds[i]);
         }
 
         // compose new
         ISoccerStarNft.SoccerStar memory soccerStar = tokenContract.getCardProperty(tokenIds[0]);
 
+        uint payAmount = 0;
         if(ComposeMode.COMPOSE_NORMAL == mode) {
             require(msg.sender == IERC721(address(tokenContract)).ownerOf(extralToken), "TOKEN_NOT_BELLOW_TO_SENDER");
-            // burn the extra
-            IERC721(address(tokenContract)).transferFrom(msg.sender, BLOCK_HOLE, extralToken);
+            // burn the extral
+            IERC721(address(tokenContract)).transferFrom(msg.sender, BLACK_HOLE, extralToken);
         } else {
-            uint amount = caculateBurnAmount(soccerStar.starLevel, soccerStar.gradient);
+            require(isActivityOpen(), "ACTIVITY_IS_NOT_OPENED");
+            
+            payAmount = caculateBurnAmount(soccerStar.starLevel, soccerStar.gradient);
             if(PayMethod.PAY_BIB == payMethod){
-                bibContract.transferFrom(msg.sender, BLOCK_HOLE, amount);
+                bibContract.transferFrom(msg.sender, BLACK_HOLE, payAmount);
             } else {
-                amount = caculateBUSDAmount(amount);
-                bibContract.transferFrom(msg.sender, treasury, amount);
+                payAmount = caculateBUSDAmount(payAmount);
+                busdContract.transferFrom(msg.sender, treasury, payAmount);
             }
         }
 
         uint newToken = tokenContract.protocolMint();
+        // starlevel added by one
+        soccerStar.starLevel += 1;
         tokenContract.protocolBind(newToken, soccerStar);
         IERC721(address(tokenContract)).transferFrom(address(this), msg.sender, newToken);
-        emit Composed(msg.sender, tokenIds, newToken, mode, payMethod);
+        emit Composed(msg.sender, tokenIds, extralToken,newToken, mode, payMethod, payAmount);
     }
 
     function caculateBurnAmount(uint starLevel, uint gradient) public view returns(uint){

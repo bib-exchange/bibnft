@@ -1,0 +1,140 @@
+{
+  "SoccerStarNft": {
+    "bsc_test": {
+      "address": "0x3f35D757050be16b26eeE079f44C344cce8F60ee",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "SoccerStarNftImpl": {
+    "bsc_test": {
+      "address": "0xc5965CEa9040aF910abe3565243384496EfD3Afd",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "InitializableAdminUpgradeabilityProxy": {
+    "bsc_test": {
+      "address": "0xEbb57BCA934E7fDeCA27232AfBb19f44D5500624",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "ComposedSoccerStarNft": {
+    "bsc_test": {
+      "address": "0x052E85D480b9051366790802864aB0301017c89d",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "ComposedSoccerStarNftImpl": {
+    "bsc_test": {
+      "address": "0xDf4E0DBe78f51b8b1eC7eF98c9393C696a133DF0",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "SoccerStarNftMarket": {
+    "bsc_test": {
+      "address": "0x27a358982aB011bd7456C5Bc3FfF51148B17fb84",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "SoccerStarNftMarketImpl": {
+    "bsc_test": {
+      "address": "0xA2c1927B94cdAA14f93e15DB3cD4b316291f4DC1",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "StakedSoccerStarNftV2": {
+    "bsc_test": {
+      "address": "0x20F5a8B8F1FE7484DC777097c85320217AF294d8",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "StakedSoccerStarNftV2Impl": {
+    "bsc_test": {
+      "address": "0xb73b96153547D977127CC0c70c3d718a0EecB3C1",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "StakedDividendTracker": {
+    "bsc_test": {
+      "address": "0x82D2b601c18c7D6acb75a17D868875b0c2adcF58",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "StakedDividendTrackerImpl": {
+    "bsc_test": {
+      "address": "0xdE9145F2e0829b4f361C140954E5C9AD79914090",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "FeeCollector": {
+    "bsc_test": {
+      "address": "0xe83b52a5A1d5E704e1F9b27730910C6480F6B6A4",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "FeeCollectorImpl": {
+    "bsc_test": {
+      "address": "0x91d52c83d51d8cAeFc7B6C1094C674fcb880DA1F",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "StakedRewardUiDataProvider": {
+    "bsc_test": {
+      "address": "0x3834c3014B28A1C60270f14EF52dBbfC0F5c662C",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "BIBNode": {
+    "bsc_test": {
+      "address": "0x74A3279b50ea829392C807d426798a75Bf69bFF6",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "BIBNodeImpl": {
+    "bsc_test": {
+      "address": "0x1679F17046c8b085cB12d880F8c80639eA114438",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "IterableMapping": {
+    "bsc_test": {
+      "address": "0xAFC28d68b3680A1B694259058095e85FC26e949b",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "BIBDividendImpl": {
+    "bsc_test": {
+      "address": "0xba1Ea7af27FFB796a5435732Db33536d87fa9049",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "BIBDividend": {
+    "bsc_test": {
+      "address": "0x240F1313902651c2e8F519483219F07A0D80Dc40",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "BIBStaking": {
+    "bsc_test": {
+      "address": "0xA571092DD146D01d3BE25100b07459d66b58159f",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "BIBStakingImpl": {
+    "bsc_test": {
+      "address": "0x3650880aed46e873AF39d662B4cAFb6DA28Da8d7",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "DividendCollector": {
+    "bsc_test": {
+      "address": "0xEbb57BCA934E7fDeCA27232AfBb19f44D5500624",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  },
+  "DividendCollectorImpl": {
+    "bsc_test": {
+      "address": "0x02686e92a386001C580438376d6B54f76655d45B",
+      "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    }
+  }
+}

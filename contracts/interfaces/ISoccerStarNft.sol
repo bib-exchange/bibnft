@@ -10,7 +10,7 @@ interface ISoccerStarNft {
         string position;
         // range [1,4]
         uint256 starLevel;
-        // rage [1,4]
+        // range [1,4]
         uint256 gradient;
     }
 
@@ -41,8 +41,21 @@ interface ISoccerStarNft {
         uint256 quantity, 
         PayMethod payMethod, 
         uint sales);
+        
+    function updateStarlevel(uint tokenId, uint starLevel) external;
+
+    // whitelist functions
+    function addUserQuotaPreRoundBatch(address[] memory users,uint[] memory quotas) external;
+    function setUserQuotaPreRound(address user, uint quota) external;
+    function getUserRemainningQuotaPreRound(address user) external view returns(uint);
+    function getUserQuotaPreRound(address user) external view returns(uint);
 
     function getCardProperty(uint256 tokenId) external view returns(SoccerStar memory);
+
+    // BUSD quota
+    function setBUSDQuotaPerPubRound(uint round, uint quota) external;
+    function getBUSDQuotaPerPubRound(uint round) external view returns(uint);
+    function getBUSDUsedQuotaPerPubRound(uint round) external view returns(uint);
 
     // only allow protocol related contract to mint
     function protocolMint() external returns(uint tokenId);
