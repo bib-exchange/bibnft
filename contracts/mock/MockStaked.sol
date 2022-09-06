@@ -8,11 +8,13 @@ contract MockStaked {
     uint public totalDeposit;
     uint public totalStaked;
     uint public totalPower;
+    uint public tokenId;
 
-    event Deposit(address sender,uint round, uint amount);
+    constructor(){}
+    //event Deposit(address sender,uint round, uint amount);
 
     // Trigred to end an reward period
-    event CloseRound(address sender, uint round, uint totalDeposit, uint totalStaked, uint totalPower);
+    //event CloseRound(address sender, uint round, uint totalDeposit, uint totalStaked, uint totalPower);
 
     // Trigred to stake a nft card
     event Stake(address sender, uint tokenId);
@@ -23,29 +25,29 @@ contract MockStaked {
     // Triggered after unfrozen peroid
     event Withdraw(address sender, uint  tokenId);
 
-    // Triggered when reward is taken
-    event ClaimReward(address sender, uint amount);
+     // Triggered when reward is taken
+    event ClaimReward(address sender, uint tokenId, uint amount);
 
-    function deposit(uint amount) public {
+    // function deposit(uint amount) public {
 
-        emit CloseRound(msg.sender, round, totalDeposit, totalStaked, totalPower);
+    //     emit CloseRound(msg.sender, round, totalDeposit, totalStaked, totalPower);
 
-        emit Deposit(msg.sender, round, amount);
+    //     emit Deposit(msg.sender, round, amount);
 
-        totalDeposit += 10;
-        round++;
-    }
+    //     totalDeposit += 10;
+    //     round++;
+    // }
 
     // close a reward period
-    function closeRound() public {
-        emit CloseRound(msg.sender, round, totalDeposit, totalStaked, totalPower);
-        round++;
-    }
+    // function closeRound() public {
+    //     emit CloseRound(msg.sender, round, totalDeposit, totalStaked, totalPower);
+    //     round++;
+    // }
 
     // user staken the spcified token
-    function stake(uint tokenId) public {
-        emit CloseRound(msg.sender, round, totalDeposit, totalStaked, totalPower);
-         
+    function stake(uint _tokenId) public {
+        //emit CloseRound(msg.sender, round, totalDeposit, totalStaked, totalPower);
+        tokenId = _tokenId;
         emit Stake(msg.sender, tokenId);
 
         round++;
@@ -54,9 +56,9 @@ contract MockStaked {
     }
 
     // user redeem the spcified token
-    function redeem(uint tokenId) public {
-        emit CloseRound(msg.sender, round, totalDeposit, totalStaked, totalPower);
-
+    function redeem(uint _tokenId) public {
+        //emit CloseRound(msg.sender, round, totalDeposit, totalStaked, totalPower);
+        tokenId = _tokenId;
         emit Redeem(msg.sender, tokenId);
 
         round++;
@@ -64,12 +66,21 @@ contract MockStaked {
     }
 
     // user withdraw the spcified token
-    function withdraw(uint tokenId) public{
-        emit CloseRound(msg.sender, round, totalDeposit, totalStaked, totalPower);
-
-        emit Redeem(msg.sender, tokenId);
+    function withdraw(uint _tokenId) public{
+        //emit CloseRound(msg.sender, round, totalDeposit, totalStaked, totalPower);
+        tokenId = _tokenId;
+        emit Withdraw(msg.sender, tokenId);
 
         round++;
         totalStaked--;
     }
+
+     /**
+   * @dev Claims reward to the specific token
+   **/
+  function claimRewards() external {
+    uint unclaimedRewards = 100;
+    emit ClaimReward(msg.sender, tokenId, unclaimedRewards);
+    
+  }
 }
