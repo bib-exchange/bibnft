@@ -570,7 +570,8 @@ contract BIBDividend is OwnableUpgradeable{
     }
 
     function _getUnClaim(ExState memory userState, uint256 _exchangeRateMantissa, uint256 _dividendPerShare) internal pure returns(uint256){
-        uint256 _newDividend = _dividendPerShare.sub(userState.lastDividendPerShare).mul(userState.balance);
+        uint256 deltaDividendRateMantissa = _dividendPerShare.sub(userState.lastDividendPerShare);
+        uint256 _newDividend = FixedPoint.multiplyUintByMantissa(userState.balance, deltaDividendRateMantissa);
         if (_exchangeRateMantissa == userState.lastExchangeRateMantissa) {
             return userState.unClaim.add(_newDividend);
         }
