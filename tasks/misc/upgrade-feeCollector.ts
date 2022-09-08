@@ -24,7 +24,7 @@ task(`upgrade:fee-collector`, `Update the specific contract to a higher version`
     const network = localBRE.network.name as eEthereumNetwork;
 
     // TODO: replace the target contract before update
-    const adminKey = '1569e8b0f240e813178da4ed85890921dfbb75097218ca457d75ffc74b71358f';
+    const adminKey = '';
     const targetContractName = eContractid.FeeCollector;
     const feeCollector = await getFeeCollector();
     const feeCollectorImpl = await deployFeeCollector();

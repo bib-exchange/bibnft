@@ -13,10 +13,11 @@ import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
   getBIBTokenPerNetwork,
   getBUSDTokenPerNetwork,
-  getMockOraclePerNetwork,
+  getSwapRoterPerNetwork,
   getTreasuryPerNetwork,
   getBIBAdminPerNetwork,
-  getTokenDividendTrackerPerNetwork
+  getTokenDividendTrackerPerNetwork,
+  getRevealWalletPerNetwork
  } from '../../helpers/constants';
 
 const { ComposedSoccerStarNft, SoccerStarNft } = eContractid;
@@ -48,7 +49,7 @@ task(`initialize-${ComposedSoccerStarNft}`, `Initialize the ${ComposedSoccerStar
       await getBIBTokenPerNetwork(network),
       await getBUSDTokenPerNetwork(network),
       await getTreasuryPerNetwork(network),
-      await getMockOraclePerNetwork(network) // TODO: replace with DEX SWATP
+      await getSwapRoterPerNetwork(network)
     ]);
 
     await waitForTx(
@@ -57,6 +58,12 @@ task(`initialize-${ComposedSoccerStarNft}`, `Initialize the ${ComposedSoccerStar
         admin,
         encodedInitialize
       )
+    );
+
+    const revealWallet = await getRevealWalletPerNetwork(network);
+    console.log(`\tAllow reveal wallet ${revealWallet} to call ${ComposedSoccerStarNft} proxy`);
+    await waitForTx(
+      await composedSoccerStarNft.setAllowToCall(revealWallet, true)
     );
 
     console.log(`\tExclude ${ComposedSoccerStarNft} from devidend list`);
