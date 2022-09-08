@@ -34,6 +34,8 @@
     "bsc:check": "npm run hardhat-bsc -- run:check",
     "bsc-test:exclude-dividend": "npm run hardhat-bsc-test --  run:exclude-dividend",
     "bsc:exclude-dividend": "npm run hardhat-bsc --  run:exclude-dividend",
+    "bsc-test:exclude-fee": "npm run hardhat-bsc-test --  run:exclude-fee",
+    "bsc:exclude-fee": "npm run hardhat-bsc --  run:exclude-fee",
     "bsc:deployment": "npm run hardhat-bsc -- bsc-deployment --verify",
     "dev-deployment": "npm run hardhat -- dev-deployment",
     "ci:clean": "rm -rf ./artifacts ./cache ./types",

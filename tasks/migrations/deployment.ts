@@ -68,5 +68,11 @@ task('deployment', 'Deployment in bsc-test network')
     // 7
     await DRE.run(`initialize-DividendCollector`, {verify});
 
+    // 8 
+    await DRE.run(`run:exclude-fee`, {verify});
+
+    // 9
+    await DRE.run(`run:check`, {verify});
+
     console.log(`\n✔️ Finished the deployment for ${network}. ✔️`);
   });

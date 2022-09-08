@@ -32,7 +32,8 @@ export enum eContractid {
   BIBStakingImpl = "BIBStakingImpl",
   Faucet = "Faucet",
   IFreezeToken = "IFreezeToken",
-  ITokenDividendTracker = "ITokenDividendTracker"
+  ITokenDividendTracker = "ITokenDividendTracker",
+  IWhiteList = "IWhiteList"
 }
 
 export enum ProtocolErrors {}

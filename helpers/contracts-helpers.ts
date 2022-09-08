@@ -32,6 +32,7 @@ import { BibDividendLibraryAddresses, BibDividend__factory } from '../types/fact
 import { Faucet } from '../types';
 import { IFreezeToken } from '../types';
 import {ITokenDividendTracker} from '../types';
+import { IWhiteList } from '../types';
 
 export const registerContractInJsonDb = async (contractId: string, contractInstance: Contract) => {
   const currentNetwork = DRE.network.name;
@@ -505,6 +506,16 @@ export const getITokenDividendTracker = async (address: tEthereumAddress) => {
     address ||
       (
         await getDb().get(`${eContractid.ITokenDividendTracker}.${DRE.network.name}`).value()
+      ).address
+  );
+};
+
+export const getIWhiteListInterface = async (address: tEthereumAddress) => {
+  return await getContract<IWhiteList>(
+    eContractid.IWhiteList,
+    address ||
+      (
+        await getDb().get(`${eContractid.IWhiteList}.${DRE.network.name}`).value()
       ).address
   );
 };
