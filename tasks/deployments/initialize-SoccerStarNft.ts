@@ -19,7 +19,8 @@ import { ZERO_ADDRESS,
   getSwapRoterPerNetwork,
   getTreasuryPerNetwork,
   getBIBAdminPerNetwork,
-  getTokenDividendTrackerPerNetwork
+  getTokenDividendTrackerPerNetwork,
+  getRevealWalletPerNetwork
  } from '../../helpers/constants';
 
 const { SoccerStarNft, ComposedSoccerStarNft, StakedSoccerStarNftV2, BIBNode } = eContractid;
@@ -61,6 +62,12 @@ task(`initialize-${SoccerStarNft}`, `Initialize the ${SoccerStarNft} proxy contr
       )
     );
 
+    const revealWallet = await getRevealWalletPerNetwork(network);
+    console.log(`\tAllow reveal wallet ${revealWallet} to call ${SoccerStarNft} proxy`);
+    await waitForTx(
+      await soccerStarNft.setAllowToCall(revealWallet, true)
+    );
+  
     console.log(`\tAllow ${ComposedSoccerStarNft} to call ${SoccerStarNft} proxy`);
     const composerNft = await getComposedSoccerStarNft();
     await waitForTx(

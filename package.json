@@ -23,6 +23,8 @@
     "bsc-test:upgrade-soccerStarNft-impl": "npm run hardhat-bsc-test -- upgrade:soccerStarNftImpl",
     "bsc-test:upgrade-contract": "npm run hardhat-bsc-test -- upgrade-contract",
     "bsc-test:upgrade-market-impl": "npm run hardhat-bsc-test -- upgrade:marketImpl",
+    "bsc-test:upgrade-composed-impl": "npm run hardhat-bsc-test -- upgrade:composedImpl",
+    "bsc:upgrade-composed-impl": "npm run hardhat-bsc -- upgrade:composedImpl",
     "bs-test:upgrade-staked": "npm run hardhat-bsc-test -- upgrade:stakedImpl",
     "bs-test:upgrade-staked-dividend": "npm run hardhat-bsc-test -- upgrade:stakedDividendImpl",
     "bsc-test:transfer-ownership": "npm run hardhat-bsc-test -- migrate-owner-and-admin --no-admin-change",

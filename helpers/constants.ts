@@ -125,6 +125,17 @@ getParamPerNetwork<tEthereumAddress>(
   network
 );
 
+export const getRevealWalletPerNetwork = (network: eEthereumNetwork): tEthereumAddress =>
+getParamPerNetwork<tEthereumAddress>(
+  {
+    [eEthereumNetwork.coverage]: ZERO_ADDRESS,
+    [eEthereumNetwork.hardhat]: '0x342bb7b8b07bDe218e107dd9b0cD757eF85CeED1',
+    [eEthereumNetwork.bsc_test]: '0x342bb7b8b07bDe218e107dd9b0cD757eF85CeED1', // TODO: need to replace
+    [eEthereumNetwork.bsc]: '0x342bb7b8b07bDe218e107dd9b0cD757eF85CeED1',
+  },
+  network
+);
+
 type BN = ethers.BigNumberish;
 
 type ClaimInfo = {

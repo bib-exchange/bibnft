@@ -42,7 +42,7 @@ contract StakedSoccerStarNftV2 is
   event RewardTokenChanged(address sender, address oldValue, address newValue);
   event RewardVaultChanged(address sender, address oldValue, address newValue);
   event BalanceHookChanged(address sender, address oldValue, address newValue);
-  event CoolDownDurationChanged(address sender, address oldValue, address newValue);
+  event CoolDownDurationChanged(address sender, uint oldValue, uint newValue);
   event TransferOwnershipNFT(address sender, uint tokenId, address owner, address to);
 
   /// @notice Address to pull from the rewards, needs to have approved this contract
@@ -113,6 +113,11 @@ contract StakedSoccerStarNftV2 is
     require(address(0) != _newValue, "INVALID_ADDRESS");
     emit BalanceHookChanged(msg.sender, address(balanceHook), _newValue);
     balanceHook = IBalanceHook(_newValue);
+  }
+
+  function setCoolDownDuration(uint _coolDownDuration) public onlyOwner{
+    emit CoolDownDurationChanged(msg.sender, coolDownDuration, _coolDownDuration);
+    coolDownDuration = _coolDownDuration;
   }
 
   // check is the specified token is staked

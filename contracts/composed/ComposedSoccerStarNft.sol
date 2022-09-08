@@ -8,6 +8,7 @@ import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 import {SafeMath} from "../lib/SafeMath.sol";
 import {SafeCast} from "../lib/SafeCast.sol";
 import {IComposedSoccerStarNft} from "../interfaces/IComposedSoccerStarNft.sol";
@@ -25,7 +26,7 @@ PausableUpgradeable {
     ISoccerStarNft public tokenContract;
     IERC20 public bibContract;
     IERC20 public busdContract;
-    IBIBOracle public priceOracle;
+    IUniswapV2Router02 public router;
 
     // fill with default
     uint[12] public feeRates;
@@ -43,21 +44,24 @@ PausableUpgradeable {
     event BIBContractChanged(address sender, address oldValue, address newValue);
     event BUSDContractChanged(address sender, address oldValue, address newValue);
     event TreasuryChanged(address sender, address oldValue, address newValue);
-    event PriceOracleChanged(address sender, address oldValue, address newValue);
+    event SwapRouterChanged(address sender, address oldValue, address newValue);
     event FeeRateChanged(address sender, uint[12] oldValue, uint[12] newValue);
+    
+    mapping(address=>bool) public allowToCallTb;
 
     function initialize(
     address _tokenContract,
     address _bibContract,
     address _busdContract,
     address _treasury,
-    address _priceOracle
+    address _router
     ) public reinitializer(1) {
         tokenContract = ISoccerStarNft(_tokenContract);
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
         treasury = _treasury;
-        priceOracle = IBIBOracle(_priceOracle);
+
+        router = IUniswapV2Router02(_router);
 
         feeRates = [360000,  730000,  1200000, 2200000,
                     1800000, 3650000, 6000000, 11000000,
@@ -67,7 +71,16 @@ PausableUpgradeable {
         __Ownable_init();
     }
 
-    function setActivityTimeline(uint _startup, uint _deadline) public onlyOwner{
+    function setAllowToCall(address _caller, bool value) public onlyOwner{
+        allowToCallTb[_caller] = value;
+    }
+
+    modifier onlyAllowToCall(){
+          require(allowToCallTb[msg.sender] || msg.sender == owner(), "ONLY_PERMIT_CALLER");
+        _;
+    }
+
+    function setActivityTimeline(uint _startup, uint _deadline) public onlyAllowToCall{
         require(_startup > block.timestamp, "STARTUP_TOO_EARLY");
         require(_deadline > _startup, "INVALID_DEADLINE");
 
@@ -97,10 +110,10 @@ PausableUpgradeable {
         treasury = _treasury;
     }
 
-    function setPriceOracle(address _priceOracle) public onlyOwner{
-        require(address(0) != _priceOracle, "INVLID_ADDRESS");
-        emit PriceOracleChanged(msg.sender, address(priceOracle), _priceOracle);
-        priceOracle = IBIBOracle(_priceOracle);
+    function setSwapRouter(address _router) public onlyOwner{
+        require(address(0) != _router, "INVLID_ADDRESS");
+        emit SwapRouterChanged(msg.sender, address(router), _router);
+        router = IUniswapV2Router02(_router);
     }
 
     function setBUSDContract(address _busdContract) public onlyOwner{
@@ -170,8 +183,10 @@ PausableUpgradeable {
 
     function caculateBUSDAmount(uint bibAmount) public view returns(uint){
         // the price has ORACLE_PRECISION
-        uint priceDec = priceOracle.getAssetPrice(address(bibContract));
-        return bibAmount.mul(priceDec).div(ORACLE_PRECISION);
+        address[] memory path = new address[](2);
+        path[0] = address(bibContract);
+        path[1] = address(busdContract);
+        return router.getAmountsOut(bibAmount, path)[1];
     }
 
     function validOwnership(uint[] memory tokensToValid) internal view {
