@@ -264,10 +264,10 @@ PausableUpgradeable{
             }
         } else {
             if(address(0) != address(feeCollector)) {
-                bibContract.transferFrom(msg.sender, address(feeCollector), fees);
+                bibContract.transfer(address(feeCollector), fees);
                 try feeCollector.handleCollectBIB(fees) {}catch{}
             } else {
-                bibContract.transferFrom(msg.sender, treasury, fees);
+                bibContract.transfer(treasury, fees);
             }
         }
     }
@@ -301,7 +301,9 @@ PausableUpgradeable{
 
             collectFeeWhenSellerAsMaker(PayMethod.PAY_BUSD, fees);
         } else {
-            bibContract.transferFrom(msg.sender, order.owner, amount);
+            // walk around to avoid being charged by the bib token
+            bibContract.transferFrom(msg.sender, address(this), order.price);
+            bibContract.transfer(order.owner, amount);
 
             collectFeeWhenSellerAsMaker(PayMethod.PAY_BIB, fees);
         }
