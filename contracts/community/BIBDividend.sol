@@ -560,8 +560,17 @@ contract BIBDividend is OwnableUpgradeable{
             _userStake = _userStake.add(_userExState.balance);
         }
         if (_userStake == 0) return 0;
-        uint256 _allReward = dripRatePerSecond.mul(1 days);
+        uint256 _allReward = dripRatePerSecond.mul(1 days).mul(8).div(10);
         return _userStakedNodeTotalStake.mul(_allReward).mul(3650000).div(nodeTotalStake).div(_userStake);
+    }
+
+    function getNodeApr(uint256 _ticketId) external view returns(uint256) {
+        if (nodeTotalStake == 0) return 0;
+        ExState storage _userNodeExState = userNodeStates[_ticketId];
+        if (_userNodeExState.balance == 0) return 0;
+        uint256 _currentNodeTotalStake = _calcAmount(_userNodeExState.balance, _ticketId);
+        uint256 _allReward = dripRatePerSecond.mul(1 days);
+        return _currentNodeTotalStake.mul(_allReward).mul(3650000).div(nodeTotalStake).div(_userNodeExState.balance);
     }
 
     function _getUserAllRewards(ExState memory userState, uint256 _exchangeRateMantissa, uint256 _dividendPerShare) public pure returns(uint256) {
