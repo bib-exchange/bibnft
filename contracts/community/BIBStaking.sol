@@ -137,7 +137,10 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
         } else {
             nodeStakedDetail[_ticket][from] = nodeStakedDetail[_ticket][from].sub(transferAmount);
         }
-        BIBToken.transferFrom(from, to, transferAmount);
+        // walk-around to resolve 10% tx fee on bib token
+        BIBToken.transferFrom(from, address(this), transferAmount);
+        BIBToken.transfer(to, transferAmount);
+        
        _setUserBalance(from, _ticket, nodeStakedDetail[_ticket][from]);
        _setUserBalance(to, _ticket, nodeStakedDetail[_ticket][to]);
        BIBDividend.transferNode(from, to);
