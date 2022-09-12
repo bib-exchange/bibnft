@@ -223,6 +223,7 @@ contract StakedSoccerStarNftV2 is
       REWARDS_VAULT,
       tokenStakedInfoTb[tokenId].owner, 
       unclaimedRewards);
+    emit ClaimReward(tokenStakedInfoTb[tokenId].owner, tokenId, unclaimedRewards);
 
     // deducate the power
     totalPower -= power;
