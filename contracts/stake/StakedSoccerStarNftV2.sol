@@ -344,31 +344,33 @@ contract StakedSoccerStarNftV2 is
    * @dev Claims reward to the specific token
    **/
   function claimRewards() external override whenNotPaused{
-    uint unclaimedRewards = 0;
+    uint totalUnclaimedRewards = 0;
     uint[] storage tokenIds = userStakedTokenTb[msg.sender];
     for(uint i = 0; i < tokenIds.length; i++){
       // skip redeeming
       if(isStaked(tokenIds[i])){
-        unclaimedRewards += _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
+        uint unclaimedRewards = _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
         emit ClaimReward(msg.sender, tokenIds[i], unclaimedRewards);
+        totalUnclaimedRewards += unclaimedRewards;
       }
     }
-    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, msg.sender, unclaimedRewards);
+    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, msg.sender, totalUnclaimedRewards);
   }
 
     /**
    * @dev Claims reward to the specific token
    **/
   function claimRewardsOnbehalfOf(address to) external override whenNotPaused{
-    uint unclaimedRewards = 0;
+    uint totalUnclaimedRewards = 0;
     uint[] storage tokenIds = userStakedTokenTb[to];
     for(uint i = 0; i < tokenIds.length; i++){
       if(isStaked(tokenIds[i])){
-        unclaimedRewards += _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
+        uint unclaimedRewards =  _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
         emit ClaimReward(to, tokenIds[i], unclaimedRewards);
+        totalUnclaimedRewards += unclaimedRewards;
       }
     }
-    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, to, unclaimedRewards);
+    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, to, totalUnclaimedRewards);
   }
 
   /**
