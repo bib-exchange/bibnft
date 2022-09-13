@@ -93,7 +93,7 @@ PausableUpgradeable {
     // track user quota at pre-round
     mapping(address=>QuotaTracker) public userQutaPreRoundTb;
     
-    constructor()ERC721A("SoccerStarNft", "SCSTAR"){}
+    constructor()ERC721A("BIBMetaSuperstar", "BMSTAR"){}
 
     function initialize(   
     uint _maxMintSupply, 
@@ -111,8 +111,8 @@ PausableUpgradeable {
         __Ownable_init();
 
         // initialize
-        _name = "SoccerStarNft";
-        _symbol = "SCSTAR";
+        _name = "BIBMetaSuperstar";
+        _symbol = "BMSTAR";
         maxPubicsaleUserMintAmount = 10;
         revealed = false;
         _currentIndex = _startTokenId();

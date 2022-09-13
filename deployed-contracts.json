@@ -3,18 +3,30 @@
     "bsc_test": {
       "address": "0xe438d10ABfAc97F9a04b3ed9d5A589D44a16375f",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    },
+    "bsc": {
+      "address": "0xAC00731523295412BeE3b8645C76155b5EBE706d",
+      "deployer": "0x6D4954EEED1fc456fA8592b6128bc35c22822E6f"
     }
   },
   "SoccerStarNftImpl": {
     "bsc_test": {
       "address": "0xa31016943b0EE12b6f7Bf12f3217d3cD6657f225",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    },
+    "bsc": {
+      "address": "0xE95a6B3AF6B39963f68B82BE11Ebaf7E4e788C82",
+      "deployer": "0x6D4954EEED1fc456fA8592b6128bc35c22822E6f"
     }
   },
   "InitializableAdminUpgradeabilityProxy": {
     "bsc_test": {
       "address": "0xE33681d1812B3b844BBafAe04AcaF2BA83E0Af94",
       "deployer": "0x460ACc177d4b91CCb389A3039a2C8A4bb405E9aC"
+    },
+    "bsc": {
+      "address": "0xAC00731523295412BeE3b8645C76155b5EBE706d",
+      "deployer": "0x6D4954EEED1fc456fA8592b6128bc35c22822E6f"
     }
   },
   "ComposedSoccerStarNft": {
