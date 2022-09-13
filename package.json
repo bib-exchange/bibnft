@@ -35,6 +35,8 @@
     "bsc-test:exclude-dividend": "npm run hardhat-bsc-test --  run:exclude-dividend",
     "bsc:exclude-dividend": "npm run hardhat-bsc --  run:exclude-dividend",
     "bsc-test:exclude-fee": "npm run hardhat-bsc-test --  run:exclude-fee",
+    "bsc-test:deploy-nft": "npm run hardhat-bsc-test --  run:deploy-nft",
+    "bsc:deploy-nft": "npm run hardhat-bsc-test --  run:deploy-nft --verify",
     "bsc:exclude-fee": "npm run hardhat-bsc --  run:exclude-fee",
     "bsc:deployment": "npm run hardhat-bsc -- bsc-deployment --verify",
     "dev-deployment": "npm run hardhat -- dev-deployment",

@@ -2,51 +2,61 @@
 
 ## Getting Started
 
-Spin the npm version for compilling
+Pin the npm version for compilling
 
 ```bash
 npm -g -i npm@8.5.5
 ```
 
-This is a hardhat project. To install required node.js modules
-
+## Setup env
+Create `.env` to include deployer && api kess
 ```bash
-npm ci
+mv .env.example .env
 ```
 
-To compile the solidity source code
+Setup MNEMONIC && ETHERSCAN_KEY
+wherein, MNEMONIC is configured for deployer key (`in mnemonic`), ETHERSCAN_KEY configured for bsc-scan api key
+   
+## Some usfull Commands
+1. To install required node.js modules
+```bash
+npm ci:clean
+```
 
+2. To compile the solidity source code
 ```bash
 npm run compile
 ```
 
-To run test
-
+3. To run test
 ```bash
 npm run test
 ```
 
-To deploy the smart contract on bsc testnet
-
+4. To deploy the smart contract on bsc testnet
 ```bash
 npm run bsc-test:deployment
 ```
 
 
-To deploy the smart contract on bsc mainnet
+5. To deploy the smart contract on bsc mainnet
 ```bash
 npm run bsc:deployment
 ```
 
-To open console on testnet
-
+6. To open console on testnet
 ```bash
 npm run --network bsc-test console
 ```
 
-To open console on mainnet
+7. To open console on mainnet
 ```bash
 npm run --network bsc console
 ```
+8. To deploy the single nft contract
+```bash
+npm run bsc:deploy-nft
+```
 
 ## Deployed Contract Address
+TBD

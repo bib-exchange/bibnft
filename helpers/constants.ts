@@ -43,7 +43,7 @@ export const getBIBAdminPerNetwork = (network: eEthereumNetwork): tEthereumAddre
       [eEthereumNetwork.coverage]: "0xA1198B5dE887cd2916817C6D5d902ddfE210aBe9",
       [eEthereumNetwork.hardhat]: '0xA1198B5dE887cd2916817C6D5d902ddfE210aBe9',
       [eEthereumNetwork.bsc_test]: '0xA1198B5dE887cd2916817C6D5d902ddfE210aBe9',
-      [eEthereumNetwork.bsc]: '0x54DbDcd52680b4B90b35Fe64c7833890981c8c80',//bsc safe
+      [eEthereumNetwork.bsc]: '0x2C3665BBCc46eCa09FF93Ca13a89909B035516F2',//bsc safe
     },
     network
   );
@@ -98,7 +98,7 @@ getParamPerNetwork<tEthereumAddress>(
     [eEthereumNetwork.coverage]: ZERO_ADDRESS,
     [eEthereumNetwork.hardhat]: '0xD2F3c942Bc1AaEaD58C38801B46535fc7Bd3aA0c',
     [eEthereumNetwork.bsc_test]: '0xD2F3c942Bc1AaEaD58C38801B46535fc7Bd3aA0c', // TODO: need to replace
-    [eEthereumNetwork.bsc]: '0x32519133f990860b901297966748a002bDcb4d38',
+    [eEthereumNetwork.bsc]: '0x1c3dFDb7c5Fc8F5EF78AeDD41Efcae6828c82dF2',
   },
   network
 );
@@ -109,7 +109,7 @@ getParamPerNetwork<tEthereumAddress>(
     [eEthereumNetwork.coverage]: ZERO_ADDRESS,
     [eEthereumNetwork.hardhat]: '0xD2F3c942Bc1AaEaD58C38801B46535fc7Bd3aA0c',
     [eEthereumNetwork.bsc_test]: '0xD2F3c942Bc1AaEaD58C38801B46535fc7Bd3aA0c', // TODO: need to replace
-    [eEthereumNetwork.bsc]: '0x482A6D54119412FD76e36B5A8c20dF656b52FA76',
+    [eEthereumNetwork.bsc]: '0xe6E8292340356d5552BCb6De01A6a5BE08c40c8D',
   },
   network
 );
