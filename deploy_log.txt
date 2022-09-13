@@ -1,0 +1,80 @@
+
+> bibmeta@1.0.0 bsc:deploy-nft
+> npm run hardhat-bsc --  run:deploy-nft --verify
+
+
+> bibmeta@1.0.0 hardhat-bsc
+> cross-env hardhat --network bsc run:deploy-nft --verify
+
+
+- SoccerStarNft deployment
+	Deploying SoccerStarNft implementation ...
+
+	  *** SoccerStarNft ***
+
+	  Network: bsc
+	  tx: 0x5af28a5092381e17c7967dbcc684174eb1dd10d9306d1047d99921d01199936f
+	  contract address: 0xE95a6B3AF6B39963f68B82BE11Ebaf7E4e788C82
+	  deployer address: 0x6D4954EEED1fc456fA8592b6128bc35c22822E6f
+	  gas price: 5000000000
+	  gas used: 4829361
+	  ******
+
+[ETHERSCAN][WARNING] DeBIBing Etherscan verification due their API can not find newly deployed contracts
+Nothing to compile
+Creating Typechain artifacts in directory types for target ethers-v5
+Successfully generated Typechain artifacts!
+Successfully submitted source code for contract
+contracts/nft/SoccerStarNft.sol:SoccerStarNft at 0xE95a6B3AF6B39963f68B82BE11Ebaf7E4e788C82
+for verification on Etherscan. Waiting for verification result...
+
+[ETHERSCAN][[INFO] Retrying attemps: 0.
+
+	  *** SoccerStarNftImpl ***
+
+	  Network: bsc
+	  tx: 0x5af28a5092381e17c7967dbcc684174eb1dd10d9306d1047d99921d01199936f
+	  contract address: 0xE95a6B3AF6B39963f68B82BE11Ebaf7E4e788C82
+	  deployer address: 0x6D4954EEED1fc456fA8592b6128bc35c22822E6f
+	  gas price: 5000000000
+	  gas used: 4829361
+	  ******
+
+	Deploying SoccerStarNft Transparent Proxy ...
+
+	  *** InitializableAdminUpgradeabilityProxy ***
+
+	  Network: bsc
+	  tx: 0x7894fd21291c0283a5c89f2091119622326815479bf3325bc7714006621ebe04
+	  contract address: 0xAC00731523295412BeE3b8645C76155b5EBE706d
+	  deployer address: 0x6D4954EEED1fc456fA8592b6128bc35c22822E6f
+	  gas price: 5000000000
+	  gas used: 619706
+	  ******
+
+[ETHERSCAN][WARNING] DeBIBing Etherscan verification due their API can not find newly deployed contracts
+Compiled 112 Solidity files successfully
+Creating Typechain artifacts in directory types for target ethers-v5
+Successfully generated Typechain artifacts!
+Successfully submitted source code for contract
+contracts/deps/InitializableAdminUpgradeabilityProxy.sol:InitializableAdminUpgradeabilityProxy at 0xAC00731523295412BeE3b8645C76155b5EBE706d
+for verification on Etherscan. Waiting for verification result...
+
+Successfully verified contract InitializableAdminUpgradeabilityProxy on Etherscan.
+https://bscscan.com/address/0xAC00731523295412BeE3b8645C76155b5EBE706d#code
+
+	  *** SoccerStarNft ***
+
+	  Network: bsc
+	  tx: 0x7894fd21291c0283a5c89f2091119622326815479bf3325bc7714006621ebe04
+	  contract address: 0xAC00731523295412BeE3b8645C76155b5EBE706d
+	  deployer address: 0x6D4954EEED1fc456fA8592b6128bc35c22822E6f
+	  gas price: 5000000000
+	  gas used: 619706
+	  ******
+
+	Finished SoccerStarNft proxy and implementation deployment
+
+- Initialzie SoccerStarNft proxy
+
+✔️ Finished the deployment for SoccerStarNft. ✔️
