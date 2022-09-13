@@ -556,7 +556,7 @@ contract BIBDividend is OwnableUpgradeable{
             uint256 _ticketId = list[_i];
             if (userNodeStates[_ticketId].balance == 0 ) continue;
             ExState storage _userExState = userStakeStates[_user].stakeDetail[_ticketId];
-            _userStakedNodeTotalStake = _calcAmount(userNodeStates[_ticketId].balance, _ticketId).add(_userStakedNodeTotalStake);
+            _userStakedNodeTotalStake = _calcAmount(_userExState.balance, _ticketId).add(_userStakedNodeTotalStake);
             _userStake = _userStake.add(_userExState.balance);
         }
         if (_userStake == 0) return 0;
