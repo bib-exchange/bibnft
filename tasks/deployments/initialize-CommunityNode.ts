@@ -13,17 +13,18 @@ import {
   getFeeCollector,
   getStakedSoccerStarNftV2,
   getSoccerStarNftMarket,
-  getContract
+  getContract,
+  getIFreezeToken,
+  getITokenDividendTracker
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
   getBIBTokenPerNetwork,
-  getBUSDTokenPerNetwork,
-  getSwapRoterPerNetwork,
-  getTreasuryPerNetwork,
   getBIBAdminPerNetwork,
+  getTokenDividendTrackerPerNetwork,
   DRIP_RATE_PER_SECOND
  } from '../../helpers/constants';
+import { BibDividend, BibStaking } from '../../types';
 
 const { BIBDividend, BIBNode, BIBStaking , FeeCollector} = eContractid;
 
@@ -123,5 +124,27 @@ task(`initialize-CommunityNode`, `Initialize the CommunityNode proxy contract`)
     console.log(`\tAllow ${FeeCollector} to call ${BIBDividend}`)
     await waitForTx(
       await bibDividend.setDividendSetter(feeCollector.address)
+    );
+    // 3 added BIBStaking to free address of the BIBToken
+    console.log(`\tAdded ${BIBStaking} to BIBToken freezen list`);
+    const freezenToken = await getIFreezeToken(getBIBTokenPerNetwork(network));
+    await waitForTx(
+      await freezenToken.setFreezeTokenAddress(bibStaking.address)
+      );
+
+    const tokenTracker = await getITokenDividendTracker(getTokenDividendTrackerPerNetwork(network));
+    console.log(`\tExclude ${BIBNode} from devidend list`);
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(bibNode.address)
+    );
+
+    console.log(`\tExclude ${BIBStaking} from devidend list`);
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(bibStaking.address)
+    );
+
+    console.log(`\tExclude ${BIBDividend} from devidend list`);
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(bibDividend.address)
     );
   });

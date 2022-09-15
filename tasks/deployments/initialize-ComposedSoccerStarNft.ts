@@ -6,15 +6,18 @@ import {
   getSoccerStarNft,
   getComposedSoccerStarNft,
   getComposedSoccerStarNftImpl,
-  getContract
+  getContract,
+  getITokenDividendTracker
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
   getBIBTokenPerNetwork,
   getBUSDTokenPerNetwork,
-  getMockOraclePerNetwork,
+  getSwapRoterPerNetwork,
   getTreasuryPerNetwork,
-  getBIBAdminPerNetwork
+  getBIBAdminPerNetwork,
+  getTokenDividendTrackerPerNetwork,
+  getRevealWalletPerNetwork
  } from '../../helpers/constants';
 
 const { ComposedSoccerStarNft, SoccerStarNft } = eContractid;
@@ -46,7 +49,7 @@ task(`initialize-${ComposedSoccerStarNft}`, `Initialize the ${ComposedSoccerStar
       await getBIBTokenPerNetwork(network),
       await getBUSDTokenPerNetwork(network),
       await getTreasuryPerNetwork(network),
-      await getMockOraclePerNetwork(network) // TODO: replace with DEX SWATP
+      await getSwapRoterPerNetwork(network)
     ]);
 
     await waitForTx(
@@ -57,5 +60,16 @@ task(`initialize-${ComposedSoccerStarNft}`, `Initialize the ${ComposedSoccerStar
       )
     );
 
+    const revealWallet = await getRevealWalletPerNetwork(network);
+    console.log(`\tAllow reveal wallet ${revealWallet} to call ${ComposedSoccerStarNft} proxy`);
+    await waitForTx(
+      await composedSoccerStarNft.setAllowToCall(revealWallet, true)
+    );
+
+    console.log(`\tExclude ${ComposedSoccerStarNft} from devidend list`);
+    const tokenTracker = await getITokenDividendTracker(getTokenDividendTrackerPerNetwork(network));
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(composedSoccerStarNft.address)
+    );
     console.log(`\tFinished ${ComposedSoccerStarNft} proxy initialize`);
   });

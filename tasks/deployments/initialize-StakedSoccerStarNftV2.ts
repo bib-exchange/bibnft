@@ -8,7 +8,8 @@ import {
   getStakedDividendTracker,
   getStakedSoccerStarNftV2,
   getStakedSoccerStarNftV2Impl,
-  getBIBNode
+  getBIBNode,
+  getITokenDividendTracker
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
@@ -16,7 +17,8 @@ import { ZERO_ADDRESS,
   getBIBAdminPerNetwork,
   getRewardVaultPerNetwork,
   EMISSION_PER_SECONDS,
-  DISTRIBUTION_END
+  DISTRIBUTION_END,
+  getTokenDividendTrackerPerNetwork
  } from '../../helpers/constants';
 
 const {StakedSoccerStarNftV2, BIBNode, StakedDividendTracker} = eContractid;
@@ -83,6 +85,12 @@ task(`initialize-${StakedSoccerStarNftV2}`, `Initialize the ${StakedSoccerStarNf
     console.log(`\tbind ${StakedDividendTracker} tracker to ${StakedSoccerStarNftV2}`);
     await waitForTx(
       await stakedSoccerStarNftV2.setBalanceHook(stakedDividend.address));
+
+    console.log(`\tExclude ${StakedSoccerStarNftV2} from devidend list`);
+    const tokenTracker = await getITokenDividendTracker(getTokenDividendTrackerPerNetwork(network));
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(stakedSoccerStarNftV2.address)
+    );
 
     console.log(`\tFinished ${StakedSoccerStarNftV2} proxy initialize`);
   });

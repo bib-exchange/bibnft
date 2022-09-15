@@ -46,6 +46,11 @@ interface ISoccerStarNftMarket {
     uint tokenId, PayMethod payMethod, uint price, 
     uint mt, uint expiration);
 
+    event UpdateOrder(
+    address sender, address issuer, uint orderId, 
+    uint tokenId, PayMethod payMethod, uint price, 
+    uint mt, uint expiration);
+
     event MakeDeal(
         address sender,
         address owner,
@@ -64,7 +69,9 @@ interface ISoccerStarNftMarket {
     event CancelOffer(address sender, uint offerId);
 
     event MakeOffer(address sender, address issuer, uint tokenId, uint offerId,
-                    PayMethod payMethod,uint price, uint mt,uint expiration);
+                    PayMethod payMethod, uint price, uint mt,uint expiration);
+    event UpdateOffer(address sender, address issuer, uint tokenId, uint offerId,
+                    PayMethod payMethod, uint price, uint mt,uint expiration);
 
     function setRoyaltyRatio(uint feeRatio) external;
 
@@ -96,6 +103,8 @@ interface ISoccerStarNftMarket {
     // Owner updates order price
     function updateOrderPrice(uint orderId, uint price) external payable;
 
+    function updateOrder(uint orderId, PayMethod payMethod, uint price, uint expiration) external payable;
+
     // Buyer make a offer to the specific order
     function makeOffer(address issuer, uint tokenId, PayMethod payMethod, uint price, uint expiration) external payable;
 
@@ -104,6 +113,8 @@ interface ISoccerStarNftMarket {
 
     // Buyer udpate offer bid price
     function updateOfferPrice(uint offerId, uint price) external payable;
+
+    function updateOffer(uint offerId, PayMethod payMethod, uint price, uint expiration) external payable;
 
     // Buyer cancle the specific offer
     function cancelOffer(uint offerId) external;

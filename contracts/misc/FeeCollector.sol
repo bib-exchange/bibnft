@@ -28,8 +28,8 @@ PausableUpgradeable {
     uint public stakedRatio = 400;
     uint public kolRatio = 50;
     uint public poolRatio = 550;
-    uint public minBUSDToSwap = 100;
-    uint public minBNBToSwap = 0.01 ether;
+    uint public minBUSDToSwap = 400 ether;
+    uint public minBNBToSwap = 2 ether;
 
     uint public constant FEE_RATIO_DIV = 1000;
     
@@ -42,6 +42,7 @@ PausableUpgradeable {
 
     IERC20 public bibToken;
     IERC20 public busdToken;
+    uint public minBIBToSwap = 1**6 ether;
 
     enum TokenType{
         TOKEN_TYPE_BNB,
@@ -55,6 +56,8 @@ PausableUpgradeable {
     event RouterContractChanged(address sender, address oldValue, address newValue);
     event HandleCollect(address sender, TokenType tokenType, uint amount);
     event Distribute(address sender, address receiver, uint amount);
+
+    receive() external payable{}
 
     function initialize(
         address _vault,
@@ -77,8 +80,9 @@ PausableUpgradeable {
         stakedRatio = 400;
         kolRatio = 50;
         poolRatio = 550;
-        minBUSDToSwap = 100;
-        minBNBToSwap = 0.01 ether;
+        minBUSDToSwap = 400 ether;
+        minBNBToSwap = 2 ether;
+        minBIBToSwap = 1**6 ether;
 
         __Pausable_init();
         __Ownable_init();
@@ -99,9 +103,10 @@ PausableUpgradeable {
         require(kolRatio.add(poolRatio).add(stakedRatio) <= FEE_RATIO_DIV, "INVALID_DIVEND_RATIO");
     }
 
-    function setSwapThreshHold(uint _minBUSDToSwap, uint _minBNBToSwap) public onlyOwner{
+    function setSwapThreshHold(uint _minBUSDToSwap, uint _minBNBToSwap, uint _minBIBToSwap) public onlyOwner{
         minBUSDToSwap = _minBUSDToSwap;
         minBNBToSwap = _minBNBToSwap;
+        minBIBToSwap = _minBIBToSwap;
     }
 
     function setFeeReceiver(
@@ -190,12 +195,19 @@ PausableUpgradeable {
     }
    
     function handleCollectBIB(uint amount) public onlyCaller{
-        distribute(amount);
         emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BIB, amount);
+
+        amount = bibToken.balanceOf(address(this));
+        if(amount >= minBIBToSwap){
+            distribute(amount);
+        }
     }
 
     function handleCollectBUSD(uint amount) public onlyCaller{
-        if(busdToken.balanceOf(address(this)) >= minBUSDToSwap){
+        emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BUSD, amount);
+
+        amount = busdToken.balanceOf(address(this));
+        if(amount >= minBUSDToSwap){
             // swap BIB
             address[] memory path = new address[](2);
             path[0] = address(busdToken);
@@ -218,11 +230,13 @@ PausableUpgradeable {
             distribute(swapped);
         }
 
-        emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BUSD, amount);
     }
 
-    function handleCollectBNB(uint amount) public onlyCaller{
-        if(address(this).balance >= minBNBToSwap){
+    function handleCollectBNB(uint amount) public payable onlyCaller{
+        emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BNB, amount);
+
+        amount = address(this).balance;
+        if(amount >= minBNBToSwap){
             // swap BIB
             address[] memory path = new address[](2);
             path[0] = uniswapV2Router.WETH();
@@ -241,7 +255,5 @@ PausableUpgradeable {
             uint swapped = bibToken.balanceOf(address(this)).sub(balanceBefore);
             distribute(swapped);
         }
-        
-        emit HandleCollect(msg.sender, TokenType.TOKEN_TYPE_BNB, amount);
     }
 }

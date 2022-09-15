@@ -174,6 +174,22 @@ PausableUpgradeable{
         payMethod, price, order.mt, expiration);
     }
 
+    function updateOrder(uint orderId, PayMethod payMethod, uint price, uint expiration)
+    public override payable whenNotPaused{
+        Order storage order = orderTb[orderId];
+        require(price > 0, "PRICE_LTE_ZERO");
+        require(msg.sender == order.owner, "SHOULD_BE_ORDER_OWNER");
+        require(expiration > block.timestamp, "EXPIRATION_TOO_EARLY");
+        order.payMethod = payMethod;
+        order.price = price;
+        order.expiration = expiration;
+        order.mt = block.timestamp;
+
+       emit UpdateOrder(msg.sender, 
+        order.issuer, order.orderId, order.tokenId, 
+        payMethod, price, order.mt, expiration);
+    }
+
     function hasOrder(address issuer, uint tokenId) public override view returns(bool){
         return tokenOrderTb[issuer][tokenId] > 0;
     }
@@ -210,8 +226,7 @@ PausableUpgradeable{
     function collectFeeWhenBuyerAsMaker(PayMethod payMethod, uint fees) internal {
         if(payMethod == PayMethod.PAY_BNB) {
             if(address(0) != address(feeCollector)) {
-                payable(address(feeCollector)).transfer(fees);
-                try feeCollector.handleCollectBNB(fees) {} catch{}
+                try feeCollector.handleCollectBNB{value:fees}(fees){} catch{}
             } else {
                 payable(address(treasury)).transfer(fees);
             }
@@ -236,8 +251,7 @@ PausableUpgradeable{
     function collectFeeWhenSellerAsMaker(PayMethod payMethod, uint fees) internal {
         if(payMethod == PayMethod.PAY_BNB) {
             if(address(0) != address(feeCollector)) {
-                payable(address(feeCollector)).transfer(fees);
-                try feeCollector.handleCollectBNB(fees) {} catch{}
+                try feeCollector.handleCollectBNB{value:fees}(fees) {} catch{}
             } else {
                 payable(address(treasury)).transfer(fees);
             }
@@ -250,10 +264,10 @@ PausableUpgradeable{
             }
         } else {
             if(address(0) != address(feeCollector)) {
-                bibContract.transferFrom(msg.sender, address(feeCollector), fees);
+                bibContract.transfer(address(feeCollector), fees);
                 try feeCollector.handleCollectBIB(fees) {}catch{}
             } else {
-                bibContract.transferFrom(msg.sender, treasury, fees);
+                bibContract.transfer(treasury, fees);
             }
         }
     }
@@ -287,7 +301,9 @@ PausableUpgradeable{
 
             collectFeeWhenSellerAsMaker(PayMethod.PAY_BUSD, fees);
         } else {
-            bibContract.transferFrom(msg.sender, order.owner, amount);
+            // walk around to avoid being charged by the bib token
+            bibContract.transferFrom(msg.sender, address(this), order.price);
+            bibContract.transfer(order.owner, amount);
 
             collectFeeWhenSellerAsMaker(PayMethod.PAY_BIB, fees);
         }
@@ -304,7 +320,6 @@ PausableUpgradeable{
             order.payMethod,
             order.price,
             fees);
-
 
         (bool exist, Offer memory offer) = getOffer(order.issuer, order.tokenId, msg.sender);
         if(exist){
@@ -452,17 +467,7 @@ PausableUpgradeable{
         require(expiration > block.timestamp, "EXPIRATION_TOOL_SMALL");
         require(price > 0, "PRICE_NOT_BE_ZEROR");
 
-        if(payMethod == PayMethod.PAY_BNB){
-            require(msg.value >= price, "INSUFFICIENT_FUNDS");
-            // refunds
-            if(msg.value > price){
-                payable(address(msg.sender)).transfer(msg.value.sub(price));
-            }
-        } else if(payMethod == PayMethod.PAY_BUSD){
-            busdContract.transferFrom(msg.sender, address(this), price);
-        } else {
-            bibContract.transferFrom(msg.sender, address(this), price);
-        }
+        _charge(payMethod, price);
 
         Offer memory offer = Offer({
             offerId: nextOfferIndex++,
@@ -482,14 +487,7 @@ PausableUpgradeable{
         offer.offerId, offer.payMethod, offer.bid, offer.mt, offer.expiration);
     }
 
-    // Buyer udpate offer bid price
-    function updateOfferPrice(uint offerId, uint price) 
-    public override payable whenNotPaused{
-        Offer storage offer = offerTb[offerId];
-        require(msg.sender == offer.buyer, "SHOULD_BE_OFFER_MAKER");
-        require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
-        require(price > 0, "PRICE_NOT_BE_ZEROR");
-        
+    function _updateOfferPrice(Offer memory offer, uint price) internal {
         uint delt  = 0;
         if(offer.bid > price){
             delt = offer.bid.sub(price);
@@ -514,11 +512,72 @@ PausableUpgradeable{
                 bibContract.transferFrom(msg.sender, address(this), delt);
             }
         }
+    }
 
+    // Buyer udpate offer bid price
+    function updateOfferPrice(uint offerId, uint price) 
+    public override payable whenNotPaused{
+        Offer storage offer = offerTb[offerId];
+        require(msg.sender == offer.buyer, "SHOULD_BE_OFFER_MAKER");
+        require(offer.expiration > block.timestamp, "OFFER_EXPIRED");
+        require(price > 0, "PRICE_NOT_BE_ZEROR");
+
+        _updateOfferPrice(offer, price);
+    
         emit UpdateOfferPrice(msg.sender, offer.offerId, offer.bid, price);
 
         offer.bid = price;
         offer.mt = block.timestamp;
+    }
+
+    function _refund(PayMethod payMethod, uint amount) internal {
+        if(payMethod == PayMethod.PAY_BNB){
+            payable(msg.sender).transfer(amount);
+        } else if(payMethod == PayMethod.PAY_BUSD){
+            busdContract.transferFrom(address(this), msg.sender, amount);
+        } else {
+            bibContract.transferFrom(address(this), msg.sender, amount);
+        }
+    }
+
+    function _charge(PayMethod payMethod, uint amount) internal {
+        if(payMethod == PayMethod.PAY_BNB){
+            require(msg.value >= amount, "INSUFFICIENT_FUNDS");
+            // refunds
+            if(msg.value > amount){
+                payable(msg.sender).transfer(msg.value.sub(amount));
+            }
+        } else if(payMethod == PayMethod.PAY_BUSD){
+            busdContract.transferFrom(msg.sender, address(this), amount);
+        } else {
+            bibContract.transferFrom(msg.sender, address(this), amount);
+        }
+    }
+
+    function updateOffer(uint offerId, PayMethod payMethod, uint price, uint expiration) 
+    public override payable{
+        Offer storage offer = offerTb[offerId];
+        require(msg.sender == offer.buyer, "SHOULD_BE_OFFER_MAKER");
+        require(expiration > block.timestamp, "EXPIRATION_TOO_EARLY");
+        require(price > 0, "PRICE_NOT_BE_ZEROR");
+
+        // update or charge
+        if(payMethod == offer.payMethod){
+            _updateOfferPrice(offer, price);
+        } else {
+            // refund 
+            _refund(offer.payMethod, offer.bid);
+     
+            // recharge
+            _charge(payMethod, price);
+        }
+        offer.payMethod = payMethod;
+        offer.bid = price;
+        offer.expiration = expiration;
+        offer.mt = block.timestamp;
+
+        emit UpdateOffer(msg.sender, offer.issuer, offer.tokenId, 
+        offer.offerId, offer.payMethod, offer.bid, offer.mt, offer.expiration);
     }
 
     function _cancleOffer(uint offerId) internal {

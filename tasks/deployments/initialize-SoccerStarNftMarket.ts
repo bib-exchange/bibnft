@@ -7,7 +7,8 @@ import {
   getSoccerStarNftMarketImpl,
   getSoccerStarNft,
   getFeeCollector,
-  getContract
+  getContract,
+  getITokenDividendTracker
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
@@ -15,7 +16,8 @@ import { ZERO_ADDRESS,
   getBUSDTokenPerNetwork,
   getMockOraclePerNetwork,
   getTreasuryPerNetwork,
-  getBIBAdminPerNetwork
+  getBIBAdminPerNetwork,
+  getTokenDividendTrackerPerNetwork
  } from '../../helpers/constants';
 
 const { SoccerStarNftMarket, FeeCollector } = eContractid;
@@ -64,5 +66,10 @@ task(`initialize-${SoccerStarNftMarket}`, `Initialize the ${SoccerStarNftMarket}
     await waitForTx(
       await soccerStarNftMarketNft.setFeeCollector(feeCollector.address));
 
+    console.log(`\tExclude ${SoccerStarNftMarket} from devidend list`);
+    const tokenTracker = await getITokenDividendTracker(getTokenDividendTrackerPerNetwork(network));
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(soccerStarNftMarketNft.address)
+    );
     console.log(`\tFinished ${SoccerStarNftMarket} proxy initialize`);
   });

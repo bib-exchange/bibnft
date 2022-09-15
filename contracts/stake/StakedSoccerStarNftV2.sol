@@ -42,7 +42,7 @@ contract StakedSoccerStarNftV2 is
   event RewardTokenChanged(address sender, address oldValue, address newValue);
   event RewardVaultChanged(address sender, address oldValue, address newValue);
   event BalanceHookChanged(address sender, address oldValue, address newValue);
-  event CoolDownDurationChanged(address sender, address oldValue, address newValue);
+  event CoolDownDurationChanged(address sender, uint oldValue, uint newValue);
   event TransferOwnershipNFT(address sender, uint tokenId, address owner, address to);
 
   /// @notice Address to pull from the rewards, needs to have approved this contract
@@ -76,8 +76,7 @@ contract StakedSoccerStarNftV2 is
     __Pausable_init();
     __Ownable_init();
 
-    // TODO: shall be set to 7 days
-    coolDownDuration = 60;
+    coolDownDuration = 7 days;
 
     setDistributionDuration(distributionDuration);
   }
@@ -114,6 +113,11 @@ contract StakedSoccerStarNftV2 is
     require(address(0) != _newValue, "INVALID_ADDRESS");
     emit BalanceHookChanged(msg.sender, address(balanceHook), _newValue);
     balanceHook = IBalanceHook(_newValue);
+  }
+
+  function setCoolDownDuration(uint _coolDownDuration) public onlyOwner{
+    emit CoolDownDurationChanged(msg.sender, coolDownDuration, _coolDownDuration);
+    coolDownDuration = _coolDownDuration;
   }
 
   // check is the specified token is staked
@@ -155,7 +159,7 @@ contract StakedSoccerStarNftV2 is
     return gradient.exp(starLevel.sub(1));
   }
 
-  function stake(uint tokenId) external override whenNotPaused{
+  function _stake(uint tokenId) internal {
     require(isOwner(tokenId, msg.sender), "NOT_TOKEN_OWNER");
 
     // delegate token to this contract
@@ -186,6 +190,17 @@ contract StakedSoccerStarNftV2 is
     }
   }
 
+  function stake(uint[] memory tokenIds)
+  public override whenNotPaused{
+    for(uint i = 0; i < tokenIds.length; i++){
+      _stake(tokenIds[i]);
+    }
+  }
+
+  function stake(uint tokenId) public override whenNotPaused{
+   _stake((tokenId));
+  }
+
   function getTokenOwner(uint tokenId) public view returns(address){
     return tokenStakedInfoTb[tokenId].owner;
   }
@@ -208,6 +223,7 @@ contract StakedSoccerStarNftV2 is
       REWARDS_VAULT,
       tokenStakedInfoTb[tokenId].owner, 
       unclaimedRewards);
+    emit ClaimReward(tokenStakedInfoTb[tokenId].owner, tokenId, unclaimedRewards);
 
     // deducate the power
     totalPower -= power;
@@ -277,7 +293,7 @@ contract StakedSoccerStarNftV2 is
     userTotalPower[to] += power;
 
     // settle user unclaimed rewards
-    uint unclaimed = getUnClaimedRewardsByToken(tokenId);
+    uint unclaimed = _updateCurrentUnclaimedRewards(tokenId, power);
     REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, owner, unclaimed);
     emit ClaimReward(owner, tokenId, unclaimed);
 
@@ -328,31 +344,33 @@ contract StakedSoccerStarNftV2 is
    * @dev Claims reward to the specific token
    **/
   function claimRewards() external override whenNotPaused{
-    uint unclaimedRewards = 0;
+    uint totalUnclaimedRewards = 0;
     uint[] storage tokenIds = userStakedTokenTb[msg.sender];
     for(uint i = 0; i < tokenIds.length; i++){
       // skip redeeming
       if(isStaked(tokenIds[i])){
-        unclaimedRewards += _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
+        uint unclaimedRewards = _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
         emit ClaimReward(msg.sender, tokenIds[i], unclaimedRewards);
+        totalUnclaimedRewards += unclaimedRewards;
       }
     }
-    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, msg.sender, unclaimedRewards);
+    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, msg.sender, totalUnclaimedRewards);
   }
 
     /**
    * @dev Claims reward to the specific token
    **/
   function claimRewardsOnbehalfOf(address to) external override whenNotPaused{
-    uint unclaimedRewards = 0;
+    uint totalUnclaimedRewards = 0;
     uint[] storage tokenIds = userStakedTokenTb[to];
     for(uint i = 0; i < tokenIds.length; i++){
       if(isStaked(tokenIds[i])){
-        unclaimedRewards += _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
+        uint unclaimedRewards =  _updateCurrentUnclaimedRewards(tokenIds[i], getTokenPower(tokenIds[i]));
         emit ClaimReward(to, tokenIds[i], unclaimedRewards);
+        totalUnclaimedRewards += unclaimedRewards;
       }
     }
-    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, to, unclaimedRewards);
+    REWARD_TOKEN.safeTransferFrom(REWARDS_VAULT, to, totalUnclaimedRewards);
   }
 
   /**

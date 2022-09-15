@@ -210,12 +210,14 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
 
     function stakeNode(uint256 _ticket) public returns(bool) {
         require(nodeMap[_ticket].createTime > 0, "Node not exist");
+        require(nodeMap[_ticket].upNode == 0, "Node is subnode");
         require(subNodes[_ticket].length < maxSubNodeCount, "Node is full");
         address operator = _msgSender();
         uint256 fromTicket = ticketMap[operator];
         require(fromTicket != _ticket, "Cann't stake yourself");
         Node storage fromNode = nodeMap[fromTicket];
         require(fromNode.createTime > 0, "You don't have node.");
+        require(fromNode.upNode == 0, "You already staked.");
         subNodes[_ticket].push(fromTicket);
         fromNode.upNode = _ticket;
         uint256 stakingAmount = BIBStaking.nodeStake(fromTicket, _ticket);
@@ -311,6 +313,10 @@ contract BIBNode is PausableUpgradeable, OwnableUpgradeable, ERC721Upgradeable{
 
     function setBaseURI(string memory uri) external onlyOwner {
         baseURI = uri;
+    }
+
+    function setBIBToken(address _bibToken) external onlyOwner {
+        BIBToken = IERC20Upgradeable(_bibToken);
     }
 
     function getCardNFTByAddress(address user) public view returns(uint256) {

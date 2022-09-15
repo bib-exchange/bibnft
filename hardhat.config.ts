@@ -93,7 +93,7 @@ const config: HardhatUserConfig = {
       },
     },
     bsc: {
-      url: 'https://bsc-dataseed1.binance.org:443',
+      url: 'https://bsc-dataseed.binance.org:443',
       hardfork: HARDFORK,
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
       gasMultiplier: DEFAULT_GAS_PRICE,

@@ -93,7 +93,7 @@ PausableUpgradeable {
     // track user quota at pre-round
     mapping(address=>QuotaTracker) public userQutaPreRoundTb;
     
-    constructor()ERC721A("SoccerStarNft", "SCSTAR"){}
+    constructor()ERC721A("BIBMetaSuperstar", "BMSTAR"){}
 
     function initialize(   
     uint _maxMintSupply, 
@@ -111,8 +111,8 @@ PausableUpgradeable {
         __Ownable_init();
 
         // initialize
-        _name = "SoccerStarNft";
-        _symbol = "SCSTAR";
+        _name = "BIBMetaSuperstar";
+        _symbol = "BMSTAR";
         maxPubicsaleUserMintAmount = 10;
         revealed = false;
         _currentIndex = _startTokenId();
@@ -172,6 +172,21 @@ PausableUpgradeable {
         path[0] = address(bibContract);
         path[1] = address(busdContract);
         return router.getAmountsOut(bibAmount, path)[1];
+    }
+
+    function caculateBNBBUSDDirect(uint amount) public view returns(uint){
+        address[] memory path = new address[](2);
+        path[0] = address(busdContract);
+        path[1] = address(router.WETH());
+        return router.getAmountsOut(amount, path)[1];
+    }
+
+    function caculateBNBBUSDViaBIB(uint amount) public view returns(uint){
+        address[] memory path = new address[](3);
+        path[0] = address(busdContract);
+        path[1] = address(bibContract);
+        path[2] = address(router.WETH());
+        return router.getAmountsOut(amount, path)[2];
     }
 
    // only allow protocol related contract to mint
@@ -325,8 +340,8 @@ PausableUpgradeable {
         onlyAllowToCall{
         require(tokenIds.length == _soccerStars.length, "NEED_SAME_LENGTH");
         for(uint i = 0; i < _soccerStars.length; i++){
-            require(cardProperty[tokenIds[i]].starLevel == 0, "TOKEN_REVEALED");
             cardProperty[tokenIds[i]] = _soccerStars[i];
+            require(cardProperty[tokenIds[i]].starLevel != 0, "INVALID_PROPERTY");
         }
     }
 

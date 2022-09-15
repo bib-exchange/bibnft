@@ -29,7 +29,7 @@ task('deployment', 'Deployment in bsc-test network')
     }
 
     // 1. deploy SoccerStarNft
-    await DRE.run(`deploy-${eContractid.SoccerStarNft}`, { verify });
+    //await DRE.run(`deploy-${eContractid.SoccerStarNft}`, { verify });
 
     // // 2. deploy ComposedSoccerStarNft
     await DRE.run(`deploy-${eContractid.ComposedSoccerStarNft}`, { verify });
@@ -54,7 +54,7 @@ task('deployment', 'Deployment in bsc-test network')
 
 
     // 1
-    await DRE.run(`initialize-${eContractid.SoccerStarNft}`, { verify });
+    await DRE.run(`initialize-${eContractid.SoccerStarNft}`, { verify, init:false, configure:true });
     // 2
     await DRE.run(`initialize-${eContractid.ComposedSoccerStarNft}`, { verify });
     // 3
@@ -67,6 +67,12 @@ task('deployment', 'Deployment in bsc-test network')
     await DRE.run(`initialize-CommunityNode`, {verify});
     // 7
     await DRE.run(`initialize-DividendCollector`, {verify});
+
+    // 8 
+    await DRE.run(`run:exclude-fee`, {verify});
+
+    // 9
+    await DRE.run(`run:check`, {verify});
 
     console.log(`\n✔️ Finished the deployment for ${network}. ✔️`);
   });

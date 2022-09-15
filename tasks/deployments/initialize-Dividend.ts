@@ -11,16 +11,20 @@ import {
   getSoccerStarNftMarket,
   getBIBDividend,
   getDividendCollector,
-  getContract
+  getContract,
+  getITokenDividendTracker
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
   MIN_BUSD_SWAP_THRESHOLD,
   MIN_BNB_SWAP_THRESHOLD,
+  MIN_BIB_SWAP_THRESHOLD,
   getBIBTokenPerNetwork,
   getBUSDTokenPerNetwork,
   getTreasuryPerNetwork,
-  getBIBAdminPerNetwork
+  getBIBAdminPerNetwork,
+  getSwapRoterPerNetwork,
+  getTokenDividendTrackerPerNetwork
  } from '../../helpers/constants';
 
 const {
@@ -94,16 +98,23 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
     await waitForTx(
       await feeCollector.setSwapThreshHold(
         MIN_BUSD_SWAP_THRESHOLD,
-        MIN_BNB_SWAP_THRESHOLD
+        MIN_BNB_SWAP_THRESHOLD,
+        MIN_BIB_SWAP_THRESHOLD,
       )
     );
 
-    // 2. allow fee collecter to distribute dividend
+    // 2 set uniswap 
+    console.log(`\tConfig ${FeeCollector} swap interface`);
+    await waitForTx(
+      await feeCollector.setSwapRouter(getSwapRoterPerNetwork(network))
+    );
+
+    // 3. allow fee collecter to distribute dividend
     console.log(`\tallow ${FeeCollector} to call ${StakedDividendTracker} to distribute dividend`);
     await waitForTx(
       await stakeDividendTracker.setAllowToCall(feeCollector.address, true));
     
-    // 3. allow the market to distribute dividend to the fee collector
+    // 4. allow the market to distribute dividend to the fee collector
     console.log(`\tadd ${SoccerStarNftMarket} to ${FeeCollector} as allow caller`);
     const soccerStarNftMarket = await getSoccerStarNftMarket();
     await waitForTx(
@@ -111,11 +122,21 @@ task(`initialize-dividend`, `Initialize dividend contracts`)
           soccerStarNftMarket.address,
           true));
 
-    // 4. allow staked module to update balance
+    // 5. allow staked module to update balance
     const stakedSoccerStarNftV2 = await getStakedSoccerStarNftV2();
     console.log(`\tallow ${StakedDividendTracker} to call ${StakedDividendTracker}`);
     await waitForTx(
       await stakeDividendTracker.setAllowToCall(stakedSoccerStarNftV2.address, true));
 
+    console.log(`\tExclude ${StakedDividendTracker} from devidend list`);
+    const tokenTracker = await getITokenDividendTracker(getTokenDividendTrackerPerNetwork(network));
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(stakeDividendTracker.address)
+    );
+
+    console.log(`\tExclude ${FeeCollector} from devidend list`);
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(feeCollector.address)
+    );
     console.log(`\tFinished dividend initialize`);
   });

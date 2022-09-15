@@ -29,7 +29,11 @@ export enum eContractid {
   BIBDividend = "BIBDividend",
   BIBDividendImpl = "BIBDividendImpl",
   BIBStaking = "BIBStaking",
-  BIBStakingImpl = "BIBStakingImpl"
+  BIBStakingImpl = "BIBStakingImpl",
+  Faucet = "Faucet",
+  IFreezeToken = "IFreezeToken",
+  ITokenDividendTracker = "ITokenDividendTracker",
+  IWhiteList = "IWhiteList"
 }
 
 export enum ProtocolErrors {}

@@ -100,6 +100,24 @@
       "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "olduser",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "newUser",
+          "type": "address"
+        }
+      ],
+      "name": "transferNode",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
     }
   ],
   "bytecode": "0x",

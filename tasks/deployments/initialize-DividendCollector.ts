@@ -6,18 +6,14 @@ import {
   getDividendCollector,
   getDividendCollectorImpl,
   getContract,
-  getComposedSoccerStarNft,
-  getStakedSoccerStarNftV2,
-  getBIBNode
+  getITokenDividendTracker
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
   MAX_NFT_QUOTA,
   getBIBTokenPerNetwork,
-  getBUSDTokenPerNetwork,
-  getSwapRoterPerNetwork,
-  getTreasuryPerNetwork,
-  getBIBAdminPerNetwork
+  getBIBAdminPerNetwork,
+  getTokenDividendTrackerPerNetwork
  } from '../../helpers/constants';
 
 const { DividendCollector} = eContractid;
@@ -53,6 +49,12 @@ task(`initialize-${DividendCollector}`, `Initialize the ${DividendCollector} pro
         admin,
         encodedInitialize
       )
+    );
+
+    console.log(`\tExclude ${DividendCollector} from devidend list`);
+    const tokenTracker = await getITokenDividendTracker(getTokenDividendTrackerPerNetwork(network));
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(dividendCollector.address)
     );
 
     console.log(`\tFinished ${DividendCollector} proxy initialize`);

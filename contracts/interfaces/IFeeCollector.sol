@@ -6,5 +6,5 @@ interface IFeeCollector {
 
     function handleCollectBUSD(uint amount) external;
 
-    function handleCollectBNB(uint amount) external;
+    function handleCollectBNB(uint amount) external payable;
 }

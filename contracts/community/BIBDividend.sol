@@ -83,6 +83,8 @@ contract BIBDividend is OwnableUpgradeable{
     uint256 public claimWait;
     uint256 public minimumTokenBalanceForDividends;
     event ClaimWaitUpdated(uint256 indexed newValue, uint256 indexed oldValue);
+    mapping(uint256 => uint256) public userNodeRateMantissa;
+    mapping(uint256 => uint256) public userNodeDividendPerShare;
     
     function initialize (
         IERC20Upgradeable _asset,
@@ -113,6 +115,10 @@ contract BIBDividend is OwnableUpgradeable{
         dividendSetter = _setter;
     }
 
+    function setAsset(address _asset) external onlyOwner {
+        asset = IERC20Upgradeable(_asset);
+    }
+
     modifier onlyDividendSetter {
         require(msg.sender == dividendSetter, "ONLY_Dividend Seeter");
         _;
@@ -136,15 +142,12 @@ contract BIBDividend is OwnableUpgradeable{
     }
 
     function distributeDividends(uint256 amount) public onlyDividendSetter {
-        if (amount == 0 || nodeTotalStake.add(userNodeTotalStake) == 0) return;
+        if (amount == 0 || nodeTotalStake == 0) return;
+        totalDividendsDistributed = totalDividendsDistributed.add(amount);
         uint256 _nodeAmount = amount.mul(nodeRate).div(100);
         if (nodeTotalStake > 0) {
-            nodeDividendPerShare = _nodeAmount.div(nodeTotalStake).add(nodeDividendPerShare);
-            totalDividendsDistributed = totalDividendsDistributed.add(_nodeAmount);
-        }
-        if (userNodeTotalStake > 0) {
-            userDividendPerShare = amount.sub(_nodeAmount).div(userNodeTotalStake).add(userDividendPerShare);
-            totalDividendsDistributed = totalDividendsDistributed.add(amount.sub(_nodeAmount));
+            nodeDividendPerShare = FixedPoint.calculateMantissa(_nodeAmount, nodeTotalStake).add(nodeDividendPerShare);
+            userDividendPerShare = FixedPoint.calculateMantissa(amount.sub(_nodeAmount), nodeTotalStake).add(userDividendPerShare);
         }
     }
 
@@ -161,9 +164,7 @@ contract BIBDividend is OwnableUpgradeable{
         if (nodeTotalStake > 0) {
             uint256 nodeIndexDeltaMantissa = FixedPoint.calculateMantissa(nodeNewTokens, nodeTotalStake);
             nodeExchangeRateMantissa = uint256(nodeExchangeRateMantissa).add(nodeIndexDeltaMantissa);
-        }
-        if (userNodeTotalStake > 0) {
-            uint256 userIndexDeltaMantissa = FixedPoint.calculateMantissa(allNewTokens.sub(nodeNewTokens), userNodeTotalStake);
+            uint256 userIndexDeltaMantissa = FixedPoint.calculateMantissa(allNewTokens.sub(nodeNewTokens), nodeTotalStake);
             userExchangeRateMantissa = uint256(userExchangeRateMantissa).add(userIndexDeltaMantissa);
         }
         lastDripTimestamp = currentTimestamp.toUint32();
@@ -179,18 +180,19 @@ contract BIBDividend is OwnableUpgradeable{
         uint256 _i = list.length;
         while(_i > 0){
             _i = _i - 1;
+            uint256 _ticketId = list[_i];
             // drip node exchange rate mantissa
-            _captureNewTokensForUser(userNodeStates[list[_i]], userNodeStates[list[_i]].balance, userExchangeRateMantissa, userDividendPerShare);
+            _captureNewTokensForUserNode(_ticketId);
 
             // set to user unclaim for every node
-            ExState storage _userExState = userStakeStates[user].stakeDetail[list[_i]];
-            _captureNewTokensForUser(_userExState, _userExState.balance.mul(nodeWeight[list[_i]]).div(100),
-                userNodeStates[list[_i]].lastExchangeRateMantissa, userNodeStates[list[_i]].lastDividendPerShare);
+            ExState storage _userExState = userStakeStates[user].stakeDetail[_ticketId];
+            _captureNewTokensForUser(_userExState, _userExState.balance,
+                userNodeRateMantissa[_ticketId], userNodeDividendPerShare[_ticketId]);
             newTokens = _userExState.unClaim.add(newTokens);
             _userExState.unClaim = 0;
 
-            if (userNodeStates[list[_i]].balance == 0) {
-                delete userStakeStates[user].stakeDetail[list[_i]];
+            if (userNodeStates[_ticketId].balance == 0) {
+                delete userStakeStates[user].stakeDetail[_ticketId];
                 list[_i] = list[list.length-1];
                 list.pop();
             }
@@ -268,24 +270,24 @@ contract BIBDividend is OwnableUpgradeable{
      */
     function setUserBalance(address user, uint256 ticketId, uint256 amount) external onlyController {
         drip();
-        _captureNewTokensForUser(userNodeStates[ticketId], userNodeStates[ticketId].balance, userExchangeRateMantissa, userDividendPerShare);
+        ExState storage _userNodeExState = userNodeStates[ticketId];
+        UserStake storage _userStake = userStakeStates[user];
+        uint256[] storage list = _userStake.nodeList;
+        _captureNewTokensForUserNode(ticketId);
         
-        ExState storage _userExState = userStakeStates[user].stakeDetail[ticketId];
-        _captureNewTokensForUser(_userExState,  _userExState.balance.mul(nodeWeight[ticketId]).div(100),
-            userNodeStates[ticketId].lastExchangeRateMantissa, userNodeStates[ticketId].lastDividendPerShare);
+        ExState storage _userExState = _userStake.stakeDetail[ticketId];
+        _captureNewTokensForUser(_userExState,  _userExState.balance,
+            userNodeRateMantissa[ticketId], userNodeDividendPerShare[ticketId]);
 
         // update user node stake
-        userNodeStates[ticketId].balance = userNodeStates[ticketId].balance.sub(_userExState.balance).add(amount);
-        // update user node total stake
-        uint256 _oldUserStake = _userExState.balance.mul(nodeWeight[ticketId]).div(100);
-        uint256 _newUserStake = amount.mul(nodeWeight[ticketId]).div(100);
-        userNodeTotalStake = userNodeTotalStake.sub(_oldUserStake).add(_newUserStake);
+        _userNodeExState.balance = _userNodeExState.balance.sub(_userExState.balance).add(amount);
         // update user stake balance
-        if(_userExState.balance == 0 && amount > 0) userStakeStates[user].nodeList.push(ticketId);
+        if(_userExState.balance == 0 && amount > 0) list.push(ticketId);
         _userExState.balance = amount;
+        _userStake.unClaim = _userStake.unClaim.add(_userExState.unClaim);
+        _userExState.unClaim = 0;
         if (amount == 0) {
-            delete userStakeStates[user].stakeDetail[ticketId];
-            uint256[] storage list = userStakeStates[user].nodeList;
+            delete _userStake.stakeDetail[ticketId];
             uint256 index = list.length;
             while(index > 0) {
                 index--;
@@ -310,13 +312,9 @@ contract BIBDividend is OwnableUpgradeable{
         _captureNewTokensForUser(nodeStates[nodeOwner], nodeStates[nodeOwner].balance, nodeExchangeRateMantissa, nodeDividendPerShare);
         nodeTotalStake = nodeTotalStake.sub(nodeStates[nodeOwner].balance).add(amount);
         nodeStates[nodeOwner].balance = amount;
-
-        if (nodeWeight[ticketId] != weight) {
-            uint256 _oldNodeStake = userNodeStates[ticketId].balance.mul(nodeWeight[ticketId]).div(100);
-            uint256 _newNodeStake = userNodeStates[ticketId].balance.mul(weight);
-            userNodeTotalStake = userNodeTotalStake.sub(_oldNodeStake).add(_newNodeStake);
-            nodeWeight[ticketId] = weight;
-        }
+        
+        _captureNewTokensForUserNode(ticketId);
+        nodeWeight[ticketId] = weight;
         
         tokenHoldersMap.set(nodeOwner, amount);
     }
@@ -326,24 +324,58 @@ contract BIBDividend is OwnableUpgradeable{
         nodeTotalStake = nodeTotalStake.sub(nodeStates[nodeOwner].balance);
         delete nodeStates[nodeOwner];
 
-        _captureNewTokensForUser(userNodeStates[ticketId], userNodeStates[ticketId].balance, userExchangeRateMantissa, userDividendPerShare);
+        _captureNewTokensForUserNode(ticketId);
         userNodeStates[ticketId].balance = 0;
     }
 
+    function transferNode(address olduser, address newUser) external onlyController {
+        nodeClaim(olduser);
+        ExState storage _node = nodeStates[newUser];
+        ExState storage _oldNode = nodeStates[olduser];
+        _node.lastExchangeRateMantissa = _oldNode.lastExchangeRateMantissa;
+        _node.balance = _oldNode.balance;
+        _node.totalClaim = _oldNode.totalClaim;
+        _node.unClaim = _oldNode.unClaim;
+        _node.lastDividendPerShare = _oldNode.lastDividendPerShare;
+        delete nodeStates[olduser];
+    }
+
     function _captureNewTokensForUser(ExState storage userState, uint256 _balance, uint256 _exchangeRateMantissa, uint256 _dividendPerShare) private returns (uint256){
-        if (_exchangeRateMantissa == userState.lastExchangeRateMantissa || _balance == 0) {
+        if (_exchangeRateMantissa == userState.lastExchangeRateMantissa) {
             return 0;
         }
-        uint256 deltaExchangeRateMantissa = uint256(_exchangeRateMantissa).sub(userState.lastExchangeRateMantissa);
+        uint256 deltaExchangeRateMantissa = _exchangeRateMantissa.sub(userState.lastExchangeRateMantissa);
         uint256 newTokens = FixedPoint.multiplyUintByMantissa(_balance, deltaExchangeRateMantissa);
         userState.lastExchangeRateMantissa = _exchangeRateMantissa;
         userState.unClaim = userState.unClaim.add(newTokens);
 
-        uint256 _dividend = uint256(_balance).mul(_dividendPerShare.sub(userState.lastDividendPerShare));
+        uint256 _dividend =  FixedPoint.multiplyUintByMantissa(_balance, _dividendPerShare.sub(userState.lastDividendPerShare));
         userState.lastDividendPerShare = _dividendPerShare;
         userState.unClaim = userState.unClaim.add(_dividend);
 
         return uint256(newTokens).add(_dividend);
+    }
+
+    function _captureNewTokensForUserNode(uint256 _ticket) private returns (uint256){
+        ExState storage userState = userNodeStates[_ticket];
+        uint256 _balance = _calcAmount(userNodeStates[_ticket].balance, _ticket);
+        if (userExchangeRateMantissa == userState.lastExchangeRateMantissa) {
+            return 0;
+        }
+        uint256 deltaExchangeRateMantissa = uint256(userExchangeRateMantissa).sub(userState.lastExchangeRateMantissa);
+        uint256 newTokens = FixedPoint.multiplyUintByMantissa(_balance, deltaExchangeRateMantissa);
+        userState.lastExchangeRateMantissa = userExchangeRateMantissa;
+        userState.unClaim = userState.unClaim.add(newTokens);
+
+        uint256 _dividendPs = userDividendPerShare.sub(userState.lastDividendPerShare);
+        uint256 newDividend = FixedPoint.multiplyUintByMantissa(_balance, _dividendPs);
+        userState.lastDividendPerShare = userDividendPerShare;
+        userState.unClaim = userState.unClaim.add(newDividend);
+        if (_balance > 0){
+            userNodeRateMantissa[_ticket] = userNodeRateMantissa[_ticket].add(_calcAmount(deltaExchangeRateMantissa, _ticket));
+            userNodeDividendPerShare[_ticket] = userNodeDividendPerShare[_ticket].add(_calcAmount(_dividendPs, _ticket));
+        }
+        return uint256(newTokens).add(newDividend);
     }
 
     function setDripRatePerSecond(uint256 _dripRatePerSecond) public onlyOwner {
@@ -465,36 +497,41 @@ contract BIBDividend is OwnableUpgradeable{
         }
     }
 
-    function getUserUnClaim(address user) public view returns(uint256) {
-        uint256 _currentExchangeMantissa = _getUserCurrentExchageMantissa();
-        uint256[] storage list = userStakeStates[user].nodeList;
-        uint256 newTokens = userStakeStates[user].unClaim;
-        for(uint256 _i=0;_i<list.length;_i++){
-            // set to user unclaim for every node
-            ExState storage _userExState = userStakeStates[user].stakeDetail[list[_i]];
-            uint256 _stakeBalance = _userExState.balance.mul(nodeWeight[list[_i]]).div(100);
-            uint256 deltaExchangeRateMantissa = uint256(_currentExchangeMantissa).sub(_userExState.lastExchangeRateMantissa);
-            uint256 _dripToken = FixedPoint.multiplyUintByMantissa(_stakeBalance, deltaExchangeRateMantissa);
-            uint256 _dividend = uint256(_stakeBalance).mul(userDividendPerShare.sub(_userExState.lastDividendPerShare));
-            newTokens = newTokens.add(_dripToken).add(_dividend);
+    function getUserUnClaim(address user) public view returns(uint256 newTokens) {
+        newTokens = userStakeStates[user].unClaim;
+        uint256[] memory _rewardsList;
+        (, _rewardsList) = getUserUnClaimWithNode(user);
+        for(uint256 i = 0; i<_rewardsList.length;i++){
+            newTokens = newTokens.add(_rewardsList[i]);
         }
-        return newTokens;
     }
 
     function getUserUnClaimWithNode(address user) public view returns(uint256[] memory _nodeList, uint256[] memory _rewardsList) {
         uint256 _currentExchangeMantissa = _getUserCurrentExchageMantissa();
         uint256[] storage list = userStakeStates[user].nodeList;
-        uint256 newTokens = userStakeStates[user].unClaim;
         _nodeList = new uint256[](list.length);
         _rewardsList = new uint256[](list.length);
         for(uint256 _i=0;_i<list.length;_i++){
             // set to user unclaim for every node
-            ExState storage _userExState = userStakeStates[user].stakeDetail[list[_i]];
-            uint256 _stakeBalance = _userExState.balance.mul(nodeWeight[list[_i]]).div(100);
-            uint256 deltaExchangeRateMantissa = uint256(_currentExchangeMantissa).sub(_userExState.lastExchangeRateMantissa);
-            uint256 _dripToken = FixedPoint.multiplyUintByMantissa(_stakeBalance, deltaExchangeRateMantissa);
-            uint256 _dividend = uint256(_stakeBalance).mul(userDividendPerShare.sub(_userExState.lastDividendPerShare));
-            _nodeList[_i] = list[_i];
+            uint256 _ticketId = list[_i];
+            ExState storage _userExState = userStakeStates[user].stakeDetail[_ticketId];
+            uint256 _stakeBalance = _calcAmount(_userExState.balance, _ticketId);
+
+            uint256 deltaExchangeRateMantissa;
+            uint256 deltaDividendRateMantissa;
+            if (userNodeStates[_ticketId].balance > 0) {
+                deltaExchangeRateMantissa = uint256(_currentExchangeMantissa).sub(userNodeStates[_ticketId].lastExchangeRateMantissa);
+                deltaExchangeRateMantissa = _calcAmount(deltaExchangeRateMantissa, _ticketId);
+
+                deltaDividendRateMantissa = userDividendPerShare.sub(userNodeStates[_ticketId].lastDividendPerShare);
+                deltaDividendRateMantissa = _calcAmount(deltaDividendRateMantissa, _ticketId);
+            }
+            deltaExchangeRateMantissa = deltaExchangeRateMantissa.add(userNodeRateMantissa[_ticketId]).sub(_userExState.lastExchangeRateMantissa);
+            uint256 _dripToken = FixedPoint.multiplyUintByMantissa(_userExState.balance, deltaExchangeRateMantissa);
+
+            deltaDividendRateMantissa = deltaDividendRateMantissa.add(userNodeDividendPerShare[_ticketId]).sub(_userExState.lastDividendPerShare);
+            uint256 _dividend = FixedPoint.multiplyUintByMantissa(_stakeBalance, deltaDividendRateMantissa);
+            _nodeList[_i] = _ticketId;
             _rewardsList[_i] = _dripToken.add(_dividend);
         }
     }
@@ -511,19 +548,29 @@ contract BIBDividend is OwnableUpgradeable{
     }
 
     function getUserApr(address _user) external view returns(uint256) {
-        if (userNodeTotalStake == 0) return 0;
+        if (nodeTotalStake == 0) return 0;
         uint256 _userStakedNodeTotalStake = 0;
         uint256 _userStake = 0;
         uint256[] storage list = userStakeStates[_user].nodeList;
         for(uint256 _i=0;_i<list.length;_i++){
-            if (userNodeStates[list[_i]].balance == 0 ) continue;
-            ExState storage _userExState = userStakeStates[_user].stakeDetail[list[_i]];
-            _userStakedNodeTotalStake = userNodeStates[list[_i]].balance.mul(nodeWeight[list[_i]]).div(100).add(_userStakedNodeTotalStake);
+            uint256 _ticketId = list[_i];
+            if (userNodeStates[_ticketId].balance == 0 ) continue;
+            ExState storage _userExState = userStakeStates[_user].stakeDetail[_ticketId];
+            _userStakedNodeTotalStake = _calcAmount(_userExState.balance, _ticketId).add(_userStakedNodeTotalStake);
             _userStake = _userStake.add(_userExState.balance);
         }
         if (_userStake == 0) return 0;
+        uint256 _allReward = dripRatePerSecond.mul(1 days).mul(8).div(10);
+        return _userStakedNodeTotalStake.mul(_allReward).mul(3650000).div(nodeTotalStake).div(_userStake);
+    }
+
+    function getNodeApr(uint256 _ticketId) external view returns(uint256) {
+        if (nodeTotalStake == 0) return 0;
+        ExState storage _userNodeExState = userNodeStates[_ticketId];
+        if (_userNodeExState.balance == 0) return 0;
+        uint256 _currentNodeTotalStake = _calcAmount(_userNodeExState.balance, _ticketId);
         uint256 _allReward = dripRatePerSecond.mul(1 days);
-        return _userStakedNodeTotalStake.mul(_allReward).mul(3650000).div(userNodeTotalStake).div(_userStake);
+        return _currentNodeTotalStake.mul(_allReward).mul(3650000).div(nodeTotalStake).div(_userNodeExState.balance);
     }
 
     function _getUserAllRewards(ExState memory userState, uint256 _exchangeRateMantissa, uint256 _dividendPerShare) public pure returns(uint256) {
@@ -532,7 +579,8 @@ contract BIBDividend is OwnableUpgradeable{
     }
 
     function _getUnClaim(ExState memory userState, uint256 _exchangeRateMantissa, uint256 _dividendPerShare) internal pure returns(uint256){
-        uint256 _newDividend = _dividendPerShare.sub(userState.lastDividendPerShare).mul(userState.balance);
+        uint256 deltaDividendRateMantissa = _dividendPerShare.sub(userState.lastDividendPerShare);
+        uint256 _newDividend = FixedPoint.multiplyUintByMantissa(userState.balance, deltaDividendRateMantissa);
         if (_exchangeRateMantissa == userState.lastExchangeRateMantissa) {
             return userState.unClaim.add(_newDividend);
         }
@@ -552,7 +600,7 @@ contract BIBDividend is OwnableUpgradeable{
         uint256 newSeconds = _currentTime() - lastDripTimestamp;
         uint256 allNewTokens = newSeconds.mul(dripRatePerSecond);
         uint256 nodeNewTokens = allNewTokens.mul(nodeRate).div(100);
-        return _getCurrentExchangeMantissa(userExchangeRateMantissa, userNodeTotalStake, allNewTokens.sub(nodeNewTokens));
+        return _getCurrentExchangeMantissa(userExchangeRateMantissa, nodeTotalStake, allNewTokens.sub(nodeNewTokens));
     }
 
     function _getCurrentExchangeMantissa(uint256 _exchangeRateMantissa, uint256 _totalStake, uint256 _newTokens) internal pure returns (uint256) {

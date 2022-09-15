@@ -45,6 +45,10 @@ const listOfOwnableContractsForProduction = [
   {
     deployedName: "DividendCollector",
     artifactName: "DividendCollector"
+  },
+  {
+    deployedName: "FeeCollector",
+    artifactName: "FeeCollector"
   }
 ];
 

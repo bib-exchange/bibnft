@@ -30,6 +30,9 @@ interface IStakedSoccerStarNftV2 {
     // user staken the spcified token
     function stake(uint tokenId) external;
 
+    // user staken multiple tokens
+    function stake(uint[] memory tokenIds) external;
+
     // user redeem the spcified token
     function redeem(uint tokenId) external;
 

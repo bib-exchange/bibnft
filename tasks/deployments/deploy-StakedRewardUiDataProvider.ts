@@ -6,16 +6,12 @@ import {
   registerContractInJsonDb,
   getStakedSoccerStarNftV2,
   getStakedDividendTracker,
-  deployStakedRewardUiDataProvider
+  deployStakedRewardUiDataProvider,
+  getITokenDividendTracker
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
-  MAX_NFT_QUOTA,
-  getBIBTokenPerNetwork,
-  getBUSDTokenPerNetwork,
-  getMockOraclePerNetwork,
-  getTreasuryPerNetwork,
-  getBIBAdminPerNetwork
+  getTokenDividendTrackerPerNetwork
  } from '../../helpers/constants';
 
 const { StakedRewardUiDataProvider } = eContractid;
@@ -40,6 +36,12 @@ task(`deploy-${StakedRewardUiDataProvider}`, `Initialize the ${StakedRewardUiDat
     const stakedRewardUiDataProvider = await deployStakedRewardUiDataProvider(
       staked.address, dividend.address, verify);
     await registerContractInJsonDb(StakedRewardUiDataProvider, stakedRewardUiDataProvider);
+
+    console.log(`\tExclude ${StakedRewardUiDataProvider} from devidend list`);
+    const tokenTracker = await getITokenDividendTracker(getTokenDividendTrackerPerNetwork(network));
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(stakedRewardUiDataProvider.address)
+    );
 
     console.log(`\tFinished ${StakedRewardUiDataProvider} implementation deployment`);
   });

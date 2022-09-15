@@ -82,6 +82,14 @@ IBalanceHook {
         if(newBalance > 0){
             userTokenTb[user].push(tokenId);
         } else {
+            // withdraw dividend
+            uint _withdrawableDividend = _withdrawWithoutTransfer(tokenId);
+             bool success = rewardToken.transfer(user, _withdrawableDividend);
+            if(!success){
+                revert("ERC20: transfer failed");
+            }
+            emit DividendWithdrawn(user, tokenId, _withdrawableDividend);
+
             // remove token
             uint[] storage tokens = userTokenTb[user];
             for(uint i = 0; i < tokens.length; i++){
@@ -103,11 +111,11 @@ IBalanceHook {
 
     /// @notice Withdraws the ether distributed to the sender.
     /// @dev It emits a `DividendWithdrawn` event if the amount of withdrawn ether is greater than 0.
-    function withdrawDividendOnbehalfOf(address to) public whenNotPaused{
+    function withdrawDividendOnbehalfOf(address to) public override whenNotPaused{
         _withdrawDividend(to);
     }
 
-    function withdrawDividend() public whenNotPaused{
+    function withdrawDividend() public override whenNotPaused{
         _withdrawDividend(msg.sender);
     }
 

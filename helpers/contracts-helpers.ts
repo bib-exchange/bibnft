@@ -29,6 +29,10 @@ import {BibDividend} from '../types/BibDividend';
 import {BibStaking} from '../types/BibStaking';
 import {DividendCollector} from '../types/DividendCollector';
 import { BibDividendLibraryAddresses, BibDividend__factory } from '../types/factories/BibDividend__factory';
+import { Faucet } from '../types';
+import { IFreezeToken } from '../types';
+import {ITokenDividendTracker} from '../types';
+import { IWhiteList } from '../types';
 
 export const registerContractInJsonDb = async (contractId: string, contractInstance: Contract) => {
   const currentNetwork = DRE.network.name;
@@ -326,6 +330,18 @@ export const deployMockOracleToken = async (verify?: boolean) => {
   return instance;
 };
 
+
+export const deployFaucet = async (verify?: boolean) => {
+  const id = eContractid.Faucet;
+  const args: string[] = [];
+  const instance = await deployContract<MockBibOracle>(id, args);
+  await instance.deployTransaction.wait();
+  if (verify) {
+    await verifyContract(id, instance.address, args);
+  }
+  return instance;
+};
+
 export const getMockBIBToken = async (address?: tEthereumAddress) => {
   return await getContract<MockBib>(
     eContractid.MockBib,
@@ -470,6 +486,46 @@ export const getIErc20Detailed = async (address: tEthereumAddress) => {
     address ||
       (
         await getDb().get(`${eContractid.IERC20Detailed}.${DRE.network.name}`).value()
+      ).address
+  );
+};
+
+export const getIFreezeToken = async (address: tEthereumAddress) => {
+  return await getContract<IFreezeToken>(
+    eContractid.IFreezeToken,
+    address ||
+      (
+        await getDb().get(`${eContractid.IFreezeToken}.${DRE.network.name}`).value()
+      ).address
+  );
+};
+
+export const getITokenDividendTracker = async (address: tEthereumAddress) => {
+  return await getContract<ITokenDividendTracker>(
+    eContractid.ITokenDividendTracker,
+    address ||
+      (
+        await getDb().get(`${eContractid.ITokenDividendTracker}.${DRE.network.name}`).value()
+      ).address
+  );
+};
+
+export const getIWhiteListInterface = async (address: tEthereumAddress) => {
+  return await getContract<IWhiteList>(
+    eContractid.IWhiteList,
+    address ||
+      (
+        await getDb().get(`${eContractid.IWhiteList}.${DRE.network.name}`).value()
+      ).address
+  );
+};
+
+export const getFaucet= async (address?: tEthereumAddress) => {
+  return await getContract<Faucet>(
+    eContractid.Faucet,
+    address ||
+      (
+        await getDb().get(`${eContractid.Faucet}.${DRE.network.name}`).value()
       ).address
   );
 };
