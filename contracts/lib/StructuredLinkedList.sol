@@ -129,7 +129,7 @@ library StructuredLinkedList {
 
         uint256 next;
         (, next) = getAdjacent(self, _HEAD, _NEXT);
-        while ((next != 0) && ((_value < IStructureInterface(_structure).getNodeStakeAmount(next)) != _NEXT)) {
+        while ((next != 0) && ((_value <= IStructureInterface(_structure).getNodeStakeAmount(next)) == _NEXT)) {
             next = self.list[next][_NEXT];
         }
         return next;

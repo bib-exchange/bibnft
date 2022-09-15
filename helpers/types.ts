@@ -6,9 +6,12 @@ export enum eContractid {
   MockBusd = "MockBUSD",
   MockBibOracle = "MockBIBOracle",
   BibOracle = "BibOracle",
+  IterableMapping = "IterableMapping",
   IERC20Detailed = 'IERC20Detailed',
   SoccerStarNft = "SoccerStarNft",
   SoccerStarNftImpl = "SoccerStarNftImpl",
+  DividendCollector = "DividendCollector",
+  DividendCollectorImpl = "DividendCollectorImpl",
   ComposedSoccerStarNft = "ComposedSoccerStarNft",
   ComposedSoccerStarNftImpl = "ComposedSoccerStarNftImpl",
   SoccerStarNftMarket = "SoccerStarNftMarket",
@@ -16,9 +19,21 @@ export enum eContractid {
   StakedSoccerStarNftV2 = "StakedSoccerStarNftV2",
   StakedSoccerStarNftV2Impl = "StakedSoccerStarNftV2Impl",
   StakedDividendTracker = "StakedDividendTracker",
+  StakedDividendTrackerImpl = "StakedDividendTrackerImpl",
   FeeCollector = "FeeCollector",
   FeeCollectorImpl = 'FeeCollectorImpl',
-  InitializableAdminUpgradeabilityProxy = "InitializableAdminUpgradeabilityProxy"
+  InitializableAdminUpgradeabilityProxy = "InitializableAdminUpgradeabilityProxy",
+  StakedRewardUiDataProvider = "StakedRewardUiDataProvider",
+  BIBNode = "BIBNode",
+  BIBNodeImpl = "BIBNodeImpl",
+  BIBDividend = "BIBDividend",
+  BIBDividendImpl = "BIBDividendImpl",
+  BIBStaking = "BIBStaking",
+  BIBStakingImpl = "BIBStakingImpl",
+  Faucet = "Faucet",
+  IFreezeToken = "IFreezeToken",
+  ITokenDividendTracker = "ITokenDividendTracker",
+  IWhiteList = "IWhiteList"
 }
 
 export enum ProtocolErrors {}

@@ -11,6 +11,7 @@ import '@nomiclabs/hardhat-etherscan';
 import '@nomiclabs/hardhat-ethers';
 import path from 'path';
 import fs from 'fs';
+require('dotenv').config();
 
 const SKIP_LOAD = process.env.SKIP_LOAD === 'true';
 
@@ -27,7 +28,7 @@ if (!SKIP_LOAD) {
 }
 
 const DEFAULT_BLOCK_GAS_LIMIT = 12500000;
-const DEFAULT_GAS_PRICE = 50000000000; // 50 gwei
+const DEFAULT_GAS_PRICE = 8000000000; // 8 gwei
 const HARDFORK = 'istanbul';
 const INFURA_KEY = process.env.INFURA_KEY || '';
 const ALCHEMY_KEY = process.env.ALCHEMY_KEY || '';
@@ -92,7 +93,7 @@ const config: HardhatUserConfig = {
       },
     },
     bsc: {
-      url: 'https://bsc-dataseed1.binance.org:443',
+      url: 'https://bsc-dataseed.binance.org:443',
       hardfork: HARDFORK,
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
       gasMultiplier: DEFAULT_GAS_PRICE,
@@ -141,7 +142,7 @@ const config: HardhatUserConfig = {
       url: 'http://localhost:8555',
       chainId: COVERAGE_CHAINID,
     },
-  },
+  }
 };
 
 export default config;

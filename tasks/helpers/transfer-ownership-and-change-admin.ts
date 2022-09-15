@@ -11,20 +11,49 @@ import { string } from 'hardhat/internal/core/params/argumentTypes';
 // NOTE the deployed name and corresponding artifact name do not match so we'll need to include both here
 const listOfOwnableContractsForProduction = [
   {
-    deployedName: "example",
-    artifactName: "example"
+    deployedName: "SoccerStarNft",
+    artifactName: "SoccerStarNft"
+  },
+  {
+    deployedName: "ComposedSoccerStarNft",
+    artifactName: "ComposedSoccerStarNft"
+  },
+  {
+    deployedName: "SoccerStarNftMarket",
+    artifactName: "SoccerStarNftMarket"
+  },
+  {
+    deployedName: "StakedDividendTracker",
+    artifactName: "StakedDividendTracker"
+  },
+  {
+    deployedName: "StakedSoccerStarNftV2",
+    artifactName: "StakedSoccerStarNftV2"
+  },
+  {
+    deployedName: "BIBNode",
+    artifactName: "BIBNode"
+  },
+  {
+    deployedName: "BIBDividend",
+    artifactName: "BIBDividend"
+  },
+  {
+    deployedName: "BIBStaking",
+    artifactName: "BIBStaking"
+  },
+  {
+    deployedName: "DividendCollector",
+    artifactName: "DividendCollector"
+  },
+  {
+    deployedName: "FeeCollector",
+    artifactName: "FeeCollector"
   }
 ];
 
 const listOfOwnableContractsForTestnet = [
-  {
-    deployedName: "example", 
-    artifactName: "example"
-  },
-  {
-    deployedName: "example",
-    artifactName: "example"
-  }
+...listOfOwnableContractsForProduction
 ];
 
 const listOfProxyContractsForProduction = [
@@ -64,11 +93,15 @@ subtask(
   'transfer-ownership',
   'Transfers ownership of all ownable contracts in module for a specific network'
 )
-  .addParam('owner', 'Address of the new contract owner', undefined, types.string)
   .addFlag('debug', 'Print all blockchain transaction information')
-  .setAction(async ({ owner, debug }, localBRE) => {
+  .setAction(async ({ debug }, localBRE) => {
     const DRE: HardhatRuntimeEnvironment = await localBRE.run('set-dre');
-    console.log(owner);
+
+    let owner = promptUser(`❓ enter the owner to replace:`);
+    if(!owner || "" === owner){
+      console.error(`Invalid owner`);
+      exit(1);
+    }
 
     // get deployment json
     let deploymentJSON = getJSON('deployed-contracts.json');
@@ -80,17 +113,17 @@ subtask(
     } else {
       listOfOwnableContracts = listOfOwnableContractsForTestnet;
     }
-
+    
     // Deployer address
     const [deployer] = await getEthersSigners();
     const deployedAddress = await deployer.getAddress();
+
 
     // Create list of contracts objects from listOfOwnableContracts that have deployer's address as the owner address
     let listOfContractsToTransfer: { name: string; contract: Contract }[] = [];
     for (let i = 0; i < listOfOwnableContracts.length; i++) {
       const contractArtifactName = listOfOwnableContracts[i].artifactName;
-      const contractDeployedName = listOfOwnableContracts[i].artifactName;
-      console.log(contractDeployedName);
+      const contractDeployedName = listOfOwnableContracts[i].deployedName;
       const contractAddress = deploymentJSON[contractDeployedName as keyof typeof deploymentJSON][DRE.network.name]["address"];
       const contract = await getContract(contractArtifactName, contractAddress);
       const contractOwner = (await contract.owner()).toString();
@@ -277,13 +310,12 @@ task(
   'Will transfer ownership and change admin for all ownable and proxy contracts in module for a specific network'
 )
   .addOptionalParam('admin', 'Address of the new proxy admin', undefined, types.string)
-  .addOptionalParam('owner', 'Address of the new contract owner', undefined, types.string)
   .addFlag('debug', 'Print all blockchain transaction information')
   .addFlag('noAdminChange', 'Skips admin change step')
   .addFlag('noOwnershipTransfer', 'Skips ownership transfer step')
   .setAction(
     async (
-      { admin, owner, debug, noAdminChange, noOwnershipTransfer },
+      { admin, debug, noAdminChange, noOwnershipTransfer },
       localBRE
     ) => {
       const DRE: HardhatRuntimeEnvironment = await localBRE.run('set-dre');
@@ -297,7 +329,7 @@ task(
       }
 
       if (!noOwnershipTransfer) {
-        await DRE.run('transfer-ownership', { owner: owner, debug: debug });
+        await DRE.run('transfer-ownership', {debug: debug });
       }
     }
   );

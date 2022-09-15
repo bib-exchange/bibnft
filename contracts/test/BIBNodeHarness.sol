@@ -1,7 +1,7 @@
 
 pragma solidity ^0.8.9;
 
-import "../BIBNode.sol";
+import "../community/BIBNode.sol";
 
 contract BIBNodeHarness is BIBNode {
 

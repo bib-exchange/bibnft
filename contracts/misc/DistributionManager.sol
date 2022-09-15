@@ -2,15 +2,16 @@
 pragma solidity >=0.8.0;
 pragma experimental ABIEncoderV2;
 
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+
 import {SafeMath} from "../lib/SafeMath.sol";
 import {DistributionTypes} from "../lib/DistributionTypes.sol";
-import "../deps/Ownable.sol";
 
 /**
  * @title DistributionManager
  * @notice Accounting contract to manage multiple staking distributions
  **/
-contract DistributionManager is Ownable {
+contract DistributionManager is OwnableUpgradeable {
   using SafeMath for uint256;
 
   struct AssetData {
@@ -170,7 +171,7 @@ contract DistributionManager is Ownable {
           assetConfig.index,
           assetConfig.emissionPerSecond,
           assetConfig.lastUpdateTimestamp,
-          stakes[i].tokenPower
+          stakes[i].totalPower
         );
 
       accruedRewards = accruedRewards.add(

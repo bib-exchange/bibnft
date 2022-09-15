@@ -1,7 +1,7 @@
 import { task } from 'hardhat/config';
 import { eContractid } from '../../helpers/types';
 import { eEthereumNetwork } from '../../helpers/types-common';
-
+import { waitForTx } from '../../helpers/misc-utils';
 import {
   deployStakedDividendTracker,
   deployFeeCollector,
@@ -12,8 +12,10 @@ import {
 
 const { 
   StakedDividendTracker,
+  StakedDividendTrackerImpl,
   FeeCollector,
-  FeeCollectorImpl
+  FeeCollectorImpl,
+  StakedSoccerStarNftV2
 } = eContractid;
 
 import { ZERO_ADDRESS,
@@ -29,16 +31,17 @@ task(`deploy-dividend`, `Deploy dividend contracts`)
       throw new Error('INVALID_CHAIN_ID');
     }
 
-    const network = localBRE.network.name as eEthereumNetwork;
-
     // 1
     console.log(`\n- ${StakedDividendTracker} deployment`);
     console.log(`\tDeploying ${StakedDividendTracker} implementation ...`);
-    const stakedSoccerStarNftV2= await getStakedSoccerStarNftV2();
-    const bibToken = await getBIBTokenPerNetwork(network);
-    const stakedDividendTracker = await deployStakedDividendTracker(
-      stakedSoccerStarNftV2.address, bibToken, verify);
-    await registerContractInJsonDb(StakedDividendTracker, stakedDividendTracker);
+    const stakedDividendTrackerImpl = await deployStakedDividendTracker(verify);
+    await registerContractInJsonDb(StakedDividendTrackerImpl, stakedDividendTrackerImpl);
+
+    console.log(`\tDeploying ${StakedDividendTracker} Transparent Proxy ...`);
+    const stakedDividendTrackerrProxy = await deployInitializableAdminUpgradeabilityProxy(verify);
+    await registerContractInJsonDb(StakedDividendTracker, stakedDividendTrackerrProxy);
+    console.log(`\tFinished ${StakedDividendTracker} proxy and implementation deployment`);
+
 
     // 2
     console.log(`\n- ${FeeCollector} deployment`);
@@ -50,5 +53,5 @@ task(`deploy-dividend`, `Deploy dividend contracts`)
     const feeCollectorProxy = await deployInitializableAdminUpgradeabilityProxy(verify);
     await registerContractInJsonDb(FeeCollector, feeCollectorProxy);
 
-    console.log(`\tFinished ${StakedDividendTracker} proxy and implementation deployment`);
+    console.log(`\tFinished ${FeeCollector} proxy and implementation deployment`);
   });

@@ -28,32 +28,7 @@ task('bsc-test-deployment', 'Deployment in bsc-test network')
       checkVerification();
     }
 
-     // 1. deploy SoccerStarNft
-     await DRE.run(`deploy-${eContractid.SoccerStarNft}`, { verify });
-
-     // 2. deploy ComposedSoccerStarNft
-     await DRE.run(`deploy-${eContractid.ComposedSoccerStarNft}`, { verify });
- 
-     // 3. deploy SoccerStarNftMarket
-     await DRE.run(`deploy-${eContractid.SoccerStarNftMarket}`, { verify });
- 
-     // 4. deploy StakedSoccerStarNftV2
-     await DRE.run(`deploy-${eContractid.StakedSoccerStarNftV2}`, { verify });
- 
-     // 5. deploy StakedDividendTracker
-     await DRE.run(`deploy-dividend`, { verify });
- 
- 
-     // 1
-     await DRE.run(`initialize-${eContractid.SoccerStarNft}`, { verify });
-     // 2
-     await DRE.run(`initialize-${eContractid.ComposedSoccerStarNft}`, { verify });
-     // 3
-     await DRE.run(`initialize-${eContractid.SoccerStarNftMarket}`, { verify });
-     // 4
-     await DRE.run(`initialize-${eContractid.StakedSoccerStarNftV2}`, { verify });
-     // 5
-     await DRE.run(`initialize-dividend`, { verify });
- 
+    await DRE.run(`deployment`, { verify });
+   
     console.log('\n✔️ Finished the deployment of the BSC-test Enviroment. ✔️');
   });

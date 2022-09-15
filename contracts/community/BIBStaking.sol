@@ -27,29 +27,28 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
 
     StructuredLinkedList.List list;
     IBIBNode public BIBNode;
-    // BIB token 合约地址
+    // BIB token address
     IERC20Upgradeable public BIBToken;
     IBIBDividend public BIBDividend;
     ISoccerStarNft public soccerStarNft;
     
-    // 取消质押冻结日期
-    uint256 public freezeTime = 7 days;
-    // 资金上限倍数
-    uint256 public stakeCapTimes = 50;
-    uint256 public topNodeCount = 30;
-    uint256[] public nodeWigth = [100, 90, 80, 72];
+    uint256 public freezeTime;
+    uint256 public stakeCapTimes;
+    uint256 public topNodeCount;
+    uint256[] public nodeWigth;
     mapping(uint256 => uint256) public maxSetupAmount;
-    // 用户质押的节点列表
+    // user -> stake node list
     mapping(address => uint256[]) public stakeNodesMap;
-    // 用户冻结资金
     mapping(address => BIBFreeze[]) public userFreezeMap;
-    // 节点上质押的用户
+    // node -> stake user list
     mapping(uint256 => address[]) public nodeStakedUsers;
     mapping(uint256 => mapping(address => uint256)) public nodeStakedDetail;
     mapping(uint256 => Node) public nodeMap;
     
-    uint256 public gasForProcessing = 300000;
-    event GasForProcessingUpdated(uint256 indexed newValue, uint256 indexed oldValue);
+    uint256 public gasForProcessing;
+    event UpdateMaxSetUp(uint256 indexed level, uint256 newMaxSetUp);
+    event SuperNode(uint256 ticketId);
+    event UnSuperNode(uint256 ticketId);
     event ProcessedDividendTracker(
         uint256 iterations,
         uint256 claims,
@@ -77,8 +76,11 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     }
 
     function initialize(
-        address _bibToken,address _bibNode, address _bibDividend, address _soccerStarNft
-        ) initializer public {
+        address _bibToken,
+        address _bibNode, 
+        address _bibDividend, 
+        address _soccerStarNft
+        ) reinitializer(1) public {
         BIBToken = IERC20Upgradeable(_bibToken);
         BIBNode = IBIBNode(_bibNode);
         BIBDividend = IBIBDividend(_bibDividend);
@@ -87,6 +89,12 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
         __Ownable_init();
         maxSetupAmount[3] = 200000*10**18;
         maxSetupAmount[4] = 2000000*10**18;
+        
+        freezeTime = 7 days;
+        stakeCapTimes = 50;
+        topNodeCount = 30;
+        nodeWigth = [100, 90, 80, 72];
+        gasForProcessing = 0;
     }
 
     function createNode(address operator, uint256 _ticket, uint256 _bibAmount) external onlyNode {
@@ -98,9 +106,10 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
         nodeStakedUsers[_ticket].push(operator);
         stakeNodesMap[operator].push(_ticket);
         nodeStakedDetail[_ticket][operator] = _bibAmount;
+        emit Staking(operator, _ticket, _bibAmount);
         updataNodeWigth(_ticket);
-        require(getNodeMaxStake(_ticket) >= node.stakingAmount, "Limit exceeded");
-        BIBDividend.setUserBalance(operator, getUserStakeAmount(operator));
+        require(getNodeMaxStake(_ticket) >= _bibAmount, "Limit exceeded");
+       _setUserBalance(operator, _ticket, _bibAmount);
     }
 
     function disbandNode(address operator, uint256 _ticket) external onlyNode {
@@ -109,37 +118,57 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
         node.expireTime = _currentTime().add(freezeTime);
         node.stakingAmount = 0;
         updataNodeWigth(_ticket);
-        BIBDividend.setUserBalance(operator, getUserStakeAmount(operator));
     }
 
     function transferNodeSetUp(address from, address to, uint256 _ticket) external onlyNode {
         Node storage node = nodeMap[_ticket];
         require(node.stakingAmount >= 0, "Node is not exist");
+        uint256 defaultSetUpAmount = maxSetupAmount[getLevelByTicket(_ticket)];
+        uint256 fromUserStake = nodeStakedDetail[_ticket][from];
+        uint256 transferAmount = defaultSetUpAmount < fromUserStake ? defaultSetUpAmount : fromUserStake;
         node.owner = to;
-        nodeStakedDetail[_ticket][to] = nodeStakedDetail[_ticket][from];
-        delete nodeStakedDetail[_ticket][from];
-        updataNodeWigth(_ticket);
-        BIBDividend.setUserBalance(to, getUserStakeAmount(to));
+        if (nodeStakedDetail[_ticket][to] == 0) {
+            nodeStakedUsers[_ticket].push(to);
+            stakeNodesMap[to].push(_ticket);
+        }
+        nodeStakedDetail[_ticket][to] = nodeStakedDetail[_ticket][to].add(transferAmount);
+        if (nodeStakedDetail[_ticket][from] == transferAmount) {
+            deleteUserStakeNode(from, _ticket);
+        } else {
+            nodeStakedDetail[_ticket][from] = nodeStakedDetail[_ticket][from].sub(transferAmount);
+        }
+        // walk-around to resolve 10% tx fee on bib token
+        BIBToken.transferFrom(from, address(this), transferAmount);
+        BIBToken.transfer(to, transferAmount);
+        
+       _setUserBalance(from, _ticket, nodeStakedDetail[_ticket][from]);
+       _setUserBalance(to, _ticket, nodeStakedDetail[_ticket][to]);
+       BIBDividend.transferNode(from, to);
     }
 
     function nodeStake(uint256 _from, uint256 _to) external onlyNode returns(uint256){
-        BIBDividend.setNodeBalance(nodeMap[_from].owner, nodeMap[_from].stakingAmount);
-        if (isTopNode(_to)) {
-            BIBDividend.setNodeBalance(nodeMap[_from].owner, nodeMap[_from].stakingAmount.mul(nodeWigth[1]).div(100));
-        }else {
-            BIBDividend.setNodeBalance(nodeMap[_from].owner, nodeMap[_from].stakingAmount.mul(nodeWigth[3]).div(100));
+        uint256 _amount = nodeMap[_from].stakingAmount;
+        if (list.sizeOf() > topNodeCount && isTopNode(_from)) {
+            uint256 _lastTicket = list.getNodeByIndex(topNodeCount);
+            _setNodeBalance(nodeMap[_lastTicket].owner, _calcAmount(nodeMap[_lastTicket].stakingAmount, 0), _lastTicket, nodeWigth[0]);
         }
-        return nodeMap[_from].stakingAmount;
+        list.remove(_from);
+        uint256 level = 3;
+        if (isTopNode(_to)) level = 1;
+        _setNodeBalance(nodeMap[_from].owner, _calcAmount(_amount, level), _from, nodeWigth[level]);
+        return _amount;
     }
 
     function nodeUnStake(uint256 _from, uint256 _to) external onlyNode returns(uint256){
-        BIBDividend.setNodeBalance(nodeMap[_from].owner, nodeMap[_from].stakingAmount.mul(nodeWigth[1]).div(100));
+        updataNodeWigth(_from);
         return nodeMap[_from].stakingAmount;
     }
 
     function updateStake(uint256[] calldata _tickets, uint256[] calldata _bibAmounts) external {
         require(_tickets.length == _bibAmounts.length, "Invalid args");
         address operator = _msgSender();
+        uint256 _stakeTotal = 0;
+        uint256 _unStakeTotal = 0;
         uint256 availableAmount = getAvailableAmount(operator);
         for(uint256 i=0;i<_tickets.length;i++){
             uint256 alreadyStake = nodeStakedDetail[_tickets[i]][operator];
@@ -147,101 +176,98 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
                 continue;
             } else if (_bibAmounts[i] > alreadyStake) {
                 uint256 _stakeAmount = _bibAmounts[i].sub(alreadyStake);
-                require(availableAmount >= _stakeAmount, "Insufficient balance");
-                // 质押
+                _stakeTotal = _stakeTotal.add(_stakeAmount);
                 _stake(operator, _tickets[i], _stakeAmount);
             } else if (_bibAmounts[i] < alreadyStake) {
-                // 解除质押
-                _unStake(operator, _tickets[i], alreadyStake.sub(_bibAmounts[i]));
+                uint256 _unStakeAmount = alreadyStake.sub(_bibAmounts[i]);
+                _unStakeTotal = _unStakeTotal.add(_unStakeAmount);
+                _unStake(operator, _tickets[i], _unStakeAmount);
             }
+            if(list.nodeExists(_tickets[i])) updataNodeWigth(_tickets[i]);
+            else {
+                uint256 upTicket = BIBNode.nodeMap(_tickets[i]).upNode;
+                uint256 _amount = nodeMap[_tickets[i]].stakingAmount;
+                uint256 level = 3;
+                if (isTopNode(upTicket)) level = 1;
+                _setNodeBalance(nodeMap[_tickets[i]].owner, _calcAmount(_amount, level), _tickets[i], nodeWigth[level]);
+            }
+            _setUserBalance(operator, _tickets[i], nodeStakedDetail[_tickets[i]][operator]);
         }
-        
+        if (_stakeTotal >= _unStakeTotal) {
+            require(availableAmount >= _stakeTotal.sub(_unStakeTotal), "Insufficient balance");
+        } else {
+            userFreezeMap[operator].push(BIBFreeze({
+                amount: _unStakeTotal.sub(_stakeTotal),
+                expireTime: _currentTime().add(freezeTime)
+            }));
+        }
+        freeExpireStake(operator);
         try BIBDividend.process(gasForProcessing) returns (uint256 iterations, uint256 claims, uint256 lastProcessedIndex) {
             emit ProcessedDividendTracker(iterations, claims, lastProcessedIndex, true, gasForProcessing, tx.origin);
         } 
         catch {}
     }
 
-    function _stake(address operator, uint256 _ticket, uint256 _bibAmount) private returns(bool) {
-        // 已经过期的质押需要释放
-        // 判断余额是否够用，如果是自己节点，是否超过节点最大值
-        // 冻结BIB
+    function _stake(address operator, uint256 _ticket, uint256 _bibAmount) internal returns(bool) {
         Node storage node = nodeMap[_ticket];
-        require(node.stakingAmount > 0, "Node not exist");
-        // TODO: 判断是不是节点owner
-        bool isOwner = true;
-        if (isOwner){
-            // uint256 limit = _getCardStakingLimit(_cardNFTId);
-            // if (node.stakingAmount.add(_bibAmount) > limit) {
-            //     _bibAmount = limit.sub(node.stakingAmount);
-            // }
-            // TODO: 检查最低限额
-        }
+        require(node.expireTime == 0, "Node not exist");
         if (nodeStakedDetail[_ticket][operator] == 0) {
             nodeStakedUsers[_ticket].push(operator);
             stakeNodesMap[operator].push(_ticket);
         }
-        // TODO： 委托总量检查
         nodeStakedDetail[_ticket][operator] = nodeStakedDetail[_ticket][operator].add(_bibAmount);
         node.stakingAmount = node.stakingAmount.add(_bibAmount);
-        require(getNodeMaxStake(_ticket) >= node.stakingAmount, "Limit exceeded");
+        require(getNodeCurrentMaxStake(_ticket) >= node.stakingAmount, "Limit exceeded");
         emit Staking(operator, _ticket, _bibAmount);
-        updataNodeWigth(_ticket);
-        BIBDividend.setUserBalance(operator, getUserStakeAmount(operator));
         return true;
     }
     
-    function _unStake(address operator, uint256 _ticket, uint256 _bibAmount) private returns(bool) {
+    function _unStake(address operator, uint256 _ticket, uint256 _bibAmount) internal returns(bool) {
         Node storage node = nodeMap[_ticket];
-        require(node.stakingAmount > 0, "Node not exist");
         uint256 stakeAmount = nodeStakedDetail[_ticket][operator];
-        if (stakeAmount == 0){
-            return true;
+        if (operator == node.owner) {
+            require(getNodeMinStake(_ticket) <= stakeAmount.sub(_bibAmount), "Min setup limit");
         }
-        require(stakeAmount >= _bibAmount, "Insufficient stake");
-        node.stakingAmount = node.stakingAmount.sub(stakeAmount);
+        node.stakingAmount = node.stakingAmount.sub(_bibAmount);
         if (stakeAmount == _bibAmount) {
-            address[] storage stakedUserList = nodeStakedUsers[_ticket];
-            uint256 index = stakedUserList.length;
-            while(index > 0) {
-                index--;
-                if (stakedUserList[index] == operator) {
-                    stakedUserList[index] = stakedUserList[stakedUserList.length-1];
-                    stakedUserList.pop();
-                    break;
-                }
-            }
-            delete nodeStakedDetail[_ticket][operator];
-            uint256[] storage list = stakeNodesMap[operator];
-            uint256 i = list.length;
-            while (i > 0){
-                i--;
-                if (list[i] == _ticket){
-                    list[i] = list[list.length-1];
-                    list.pop();
-                    break;
-                }
-            }
+            deleteUserStakeNode(operator, _ticket);
         } else {
-            nodeStakedDetail[_ticket][operator] = nodeStakedDetail[_ticket][operator].sub(_bibAmount);
+            nodeStakedDetail[_ticket][operator] = stakeAmount.sub(_bibAmount);
         }
-        userFreezeMap[operator].push(BIBFreeze({
-            amount: _bibAmount,
-            expireTime: _currentTime().add(freezeTime)
-        }));
         emit UnStaking(operator, _ticket, _bibAmount);
-        updataNodeWigth(_ticket);
-        BIBDividend.setUserBalance(operator, getUserStakeAmount(operator));
         return true;
     }
 
-    function freeExpireStake(address _account) public {
-        // 移除已经过期的代币冻结记录
+    function deleteUserStakeNode(address _account, uint256 _ticket) internal {
+        address[] storage stakedUserList = nodeStakedUsers[_ticket];
+        uint256 index = stakedUserList.length;
+        while(index > 0) {
+            index--;
+            if (stakedUserList[index] == _account) {
+                stakedUserList[index] = stakedUserList[stakedUserList.length-1];
+                stakedUserList.pop();
+                break;
+            }
+        }
+        delete nodeStakedDetail[_ticket][_account];
+        uint256[] storage list = stakeNodesMap[_account];
+        uint256 i = list.length;
+        while (i > 0){
+            i--;
+            if (list[i] == _ticket){
+                list[i] = list[list.length-1];
+                list.pop();
+                break;
+            }
+        }
+    }
+
+    function freeExpireStake(address _account) internal {
         BIBFreeze[] storage list = userFreezeMap[_account];
         uint256 i = list.length;
         while (i > 0){
             i--;
-            if (list[i].expireTime > 0 && list[i].expireTime < _currentTime()){
+            if (list[i].expireTime < _currentTime()){
                 list[i] = list[list.length-1];
                 list.pop();
             }
@@ -252,6 +278,10 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
         soccerStarNft = ISoccerStarNft(_soccerStarNft);
     }
 
+    function setBIBToken(address _bibToken) external onlyOwner {
+        BIBToken = IERC20Upgradeable(_bibToken);
+    }
+
     function setNodeWeight(uint256[] memory _nodeWigth) external onlyOwner {
         require(_nodeWigth.length >=4, "Invalid config");
         nodeWigth = _nodeWigth;
@@ -259,22 +289,23 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     function setTopNodeCount(uint256 c) external onlyOwner{
         topNodeCount = c;
     }
+    function setFreezeTime(uint256 times) external onlyOwner {
+        freezeTime = times;
+    }
     function setStakeCapTimes(uint256 times) external onlyOwner {
         stakeCapTimes = times;
     }
     function setMaxSetupAmount(uint256 level, uint256 setupAmount) external onlyOwner {
         maxSetupAmount[level] = setupAmount;
+        emit UpdateMaxSetUp(level, setupAmount);
     }
 
     function updateGasForProcessing(uint256 newValue) public onlyOwner {
-        require(newValue != gasForProcessing, "Token: Cannot update gasForProcessing to same value");
-        emit GasForProcessingUpdated(newValue, gasForProcessing);
         gasForProcessing = newValue;
     }
     
     function getAvailableAmount(address _account) public view returns(uint256) {
         return BIBToken.balanceOf(_account).sub(getFreezeAmount(_account));
-        return 0;
     }
 
     function getFreezeAmount(address _account) public view returns(uint256) {
@@ -303,7 +334,6 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
         }
     }
 
-    // 获取用户质押总额
     function getUserStakeAmount(address _account) public view returns(uint256) {
         uint256[] memory list = stakeNodesMap[_account];
         uint256 _stakeAmount;
@@ -324,47 +354,81 @@ contract BIBStaking is PausableUpgradeable, OwnableUpgradeable {
     }
 
     function getNodeMaxStake(uint256 _ticketId) public view returns(uint256) {
-        uint256 _cardId = BIBNode.nodeMap(_ticketId).cardNftId;
-        ISoccerStarNft.SoccerStar memory card = soccerStarNft.getCardProperty(_cardId);
-        return maxSetupAmount[card.starLevel].mul(stakeCapTimes);
+        return maxSetupAmount[getLevelByTicket(_ticketId)].mul(stakeCapTimes);
     }
 
-    function getNodeMinStake(uint256 _ticketId) external view returns(uint256) {
+    function getLevelByTicket(uint256 _ticketId) public view returns (uint256) {
+        uint256 _cardId = BIBNode.nodeMap(_ticketId).cardNftId;
+        ISoccerStarNft.SoccerStar memory card = soccerStarNft.getCardProperty(_cardId);
+        return card.starLevel;
+    }
+
+    function getNodeMinStake(uint256 _ticketId) public view returns(uint256) {
         return nodeMap[_ticketId].stakingAmount.div(stakeCapTimes);
+    }
+
+    function getNodeCurrentMaxStake(uint256 _ticketId) public view returns(uint256) {
+        uint256 _max = getNodeMaxStake(_ticketId);
+        address _owner = nodeMap[_ticketId].owner;
+        uint256 _setup = nodeStakedDetail[_ticketId][_owner];
+        uint256 _currentMaxStake = _setup.mul(stakeCapTimes);
+        return _max <= _currentMaxStake ? _max : _currentMaxStake;
     }
 
     function isTopNode(uint256 _ticketId) public view returns(bool) {
         if (list.sizeOf() < topNodeCount) return true;
         uint256 rank = list.getIndex(_ticketId);
-        // rank 从0开始
+        // rank start from 0
         return rank < topNodeCount;
     }
 
     function updataNodeWigth(uint256 _ticketId) private{
         uint256 rank = list.getIndex(_ticketId) + 1;
         list.remove(_ticketId);
-        uint256 p = list.getSortedSpot(address(this), nodeMap[_ticketId].stakingAmount);
-        list.insertAfter(p, _ticketId);
-        if (list.sizeOf() <= topNodeCount) {
-            BIBDividend.setNodeBalance(nodeMap[_ticketId].owner, nodeMap[_ticketId].stakingAmount.mul(nodeWigth[0]).div(100));
-            return;
-        }
-        uint256 newRank = list.getIndex(_ticketId) + 1;
-        if ((rank <= topNodeCount && newRank <= topNodeCount)) {
-            BIBDividend.setNodeBalance(nodeMap[_ticketId].owner, nodeMap[_ticketId].stakingAmount.mul(nodeWigth[0]).div(100));
-            return;
-        } else if ((rank > topNodeCount && newRank > topNodeCount)) {
-            BIBDividend.setNodeBalance(nodeMap[_ticketId].owner, nodeMap[_ticketId].stakingAmount.mul(nodeWigth[2]).div(100));
-        } else if (rank <= topNodeCount && newRank > topNodeCount) {
-            BIBDividend.setNodeBalance(nodeMap[_ticketId].owner, nodeMap[_ticketId].stakingAmount.mul(nodeWigth[2]).div(100));
-            uint256 e = list.getNodeByIndex(topNodeCount-1);
-            BIBDividend.setNodeBalance(nodeMap[e].owner, nodeMap[e].stakingAmount.mul(nodeWigth[0]).div(100));
+        uint256 _amount = nodeMap[_ticketId].stakingAmount;
+        address nodeOwner = nodeMap[_ticketId].owner;
+        uint256 newRank = list.sizeOf() + 1;
 
-        } else if (rank > topNodeCount && newRank <= topNodeCount) {
-            BIBDividend.setNodeBalance(nodeMap[_ticketId].owner, nodeMap[_ticketId].stakingAmount.mul(nodeWigth[0]).div(100));
-            uint256 e = list.getNodeByIndex(topNodeCount);
-            BIBDividend.setNodeBalance(nodeMap[e].owner, nodeMap[e].stakingAmount.mul(nodeWigth[2]).div(100));
+        if (_amount > 0) {
+            uint256 p = list.getSortedSpot(address(this), _amount);
+            list.insertBefore(p, _ticketId);
+            newRank = list.getIndex(_ticketId) + 1;
+            uint256 level = 2;
+            if (newRank <= topNodeCount) level = 0;
+            _setNodeBalance(nodeOwner, _calcAmount(_amount, level), _ticketId, nodeWigth[level]);
+        } else if (_amount == 0) {
+            BIBDividend.disbandNode(nodeMap[_ticketId].owner, _ticketId);
         }
+        uint256 _lastTicketIndex;
+        uint256 _lastLevel;
+        if (rank <= topNodeCount && newRank > topNodeCount) {
+            _lastLevel = 0;
+            _lastTicketIndex = topNodeCount-1;
+        } else if (rank > topNodeCount && newRank <= topNodeCount) {
+            _lastLevel = 2;
+            _lastTicketIndex = topNodeCount;
+        } else {
+            return;
+        }
+        uint256 _lastTicket = list.getNodeByIndex(_lastTicketIndex);
+        _setNodeBalance(nodeMap[_lastTicket].owner, _calcAmount(nodeMap[_lastTicket].stakingAmount, _lastLevel), _lastTicket, nodeWigth[_lastLevel]);
+    }
+
+    function _setUserBalance(address user, uint256 ticketId, uint256 amount) internal {
+        BIBDividend.setUserBalance(user, ticketId, amount);
+    }
+
+    function _setNodeBalance(address nodeOwner, uint256 amount, uint256 ticketId, uint256 weight) internal {
+        BIBDividend.setNodeBalance(nodeOwner, amount, ticketId, weight);
+        if (weight == nodeWigth[0]) {
+            emit SuperNode(ticketId);
+        } else {
+            emit UnSuperNode(ticketId);
+        }
+    }
+
+    function _calcAmount(uint256 amount, uint256 level) internal view returns(uint256){
+        return amount.mul(nodeWigth[level]).div(100);
     }
 
     function _currentTime() internal virtual view returns (uint256) {

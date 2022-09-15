@@ -6,7 +6,9 @@ import {
   getSoccerStarNftMarket,
   getSoccerStarNftMarketImpl,
   getSoccerStarNft,
-  getContract
+  getFeeCollector,
+  getContract,
+  getITokenDividendTracker
 } from '../../helpers/contracts-helpers';
 import { waitForTx } from '../../helpers/misc-utils';
 import { ZERO_ADDRESS,
@@ -14,10 +16,11 @@ import { ZERO_ADDRESS,
   getBUSDTokenPerNetwork,
   getMockOraclePerNetwork,
   getTreasuryPerNetwork,
-  getBIBAdminPerNetwork
+  getBIBAdminPerNetwork,
+  getTokenDividendTrackerPerNetwork
  } from '../../helpers/constants';
 
-const { SoccerStarNftMarket } = eContractid;
+const { SoccerStarNftMarket, FeeCollector } = eContractid;
 
 task(`initialize-${SoccerStarNftMarket}`, `Initialize the ${SoccerStarNftMarket} proxy contract`)
   .setAction(async ({}, localBRE) => {
@@ -27,7 +30,7 @@ task(`initialize-${SoccerStarNftMarket}`, `Initialize the ${SoccerStarNftMarket}
       throw new Error('INVALID_CHAIN_ID');
     }
 
-    console.log(`\tInitialzie ${SoccerStarNftMarket} proxy`);
+    console.log(`\n- Initialzie ${SoccerStarNftMarket} proxy`);
     
     const network = localBRE.network.name as eEthereumNetwork;
 
@@ -57,5 +60,16 @@ task(`initialize-${SoccerStarNftMarket}`, `Initialize the ${SoccerStarNftMarket}
       )
     );
 
+    // 3. set market fee collector
+    console.log(`\tbind ${FeeCollector}  to ${SoccerStarNftMarket}`);
+    const feeCollector = await getFeeCollector();
+    await waitForTx(
+      await soccerStarNftMarketNft.setFeeCollector(feeCollector.address));
+
+    console.log(`\tExclude ${SoccerStarNftMarket} from devidend list`);
+    const tokenTracker = await getITokenDividendTracker(getTokenDividendTrackerPerNetwork(network));
+    await waitForTx(
+      await tokenTracker.excludeFromDividends(soccerStarNftMarketNft.address)
+    );
     console.log(`\tFinished ${SoccerStarNftMarket} proxy initialize`);
   });
