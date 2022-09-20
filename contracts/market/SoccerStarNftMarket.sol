@@ -10,7 +10,6 @@ import {SafeMath} from "../libs/SafeMath.sol";
 import {SafeCast} from "../libs/SafeCast.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
 import {ISoccerStarNftMarket} from "../interfaces/ISoccerStarNftMarket.sol";
-import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 import {IFeeCollector} from "../interfaces/IFeeCollector.sol";
 
 contract SoccerStarNftMarket is ISoccerStarNftMarket, Ownable{

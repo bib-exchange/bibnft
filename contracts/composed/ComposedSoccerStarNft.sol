@@ -7,11 +7,11 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
+import '@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol';
 import {SafeMath} from "../libs/SafeMath.sol";
 import {SafeCast} from "../libs/SafeCast.sol";
 import {IComposedSoccerStarNft} from "../interfaces/IComposedSoccerStarNft.sol";
 import {ISoccerStarNft} from "../interfaces/ISoccerStarNft.sol";
-import {IBIBOracle} from "../interfaces/IBIBOracle.sol";
 
 contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
     using SafeMath for uint;
@@ -21,7 +21,7 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
     ISoccerStarNft public tokenContract;
     IERC20 public bibContract;
     IERC20 public busdContract;
-    IBIBOracle public priceOracle;
+    IUniswapV2Router02 public router;
 
     // fill with default
     uint[12] public feeRates = [360000,  730000,    1200000, 2200000,
@@ -38,7 +38,7 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
     event BIBContractChanged(address sender, address oldValue, address newValue);
     event BUSDContractChanged(address sender, address oldValue, address newValue);
     event TreasuryChanged(address sender, address oldValue, address newValue);
-    event PriceOracleChanged(address sender, address oldValue, address newValue);
+    event SwapRouterChanged(address sender, address oldValue, address newValue);
     event FeeRateChanged(address sender, uint[12] oldValue, uint[12] newValue);
 
     constructor(
@@ -46,13 +46,13 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
     address _bibContract,
     address _busdContract,
     address _treasury,
-    address _priceOracle
+    address _router
     ){
         tokenContract = ISoccerStarNft(_tokenContract);
         bibContract = IERC20(_bibContract);
         busdContract = IERC20(_busdContract);
         treasury = _treasury;
-        priceOracle = IBIBOracle(_priceOracle);
+        router = IUniswapV2Router02(_router);
     }
 
     function setTokenContract(address _tokenContract) public onlyOwner{
@@ -73,10 +73,10 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
         treasury = _treasury;
     }
 
-    function setPriceOracle(address _priceOracle) public onlyOwner{
-        require(address(0) != _priceOracle, "INVLID_ADDRESS");
-        emit PriceOracleChanged(msg.sender, address(priceOracle), _priceOracle);
-        priceOracle = IBIBOracle(_priceOracle);
+    function setSwapRouter(address _router) public onlyOwner{
+        require(address(0) != _router, "INVLID_ADDRESS");
+        emit SwapRouterChanged(msg.sender, address(router), _router);
+        router = IUniswapV2Router02(_router);
     }
 
     function setBUSDContract(address _busdContract) public onlyOwner{
@@ -142,8 +142,10 @@ contract ComposedSoccerStarNft is IComposedSoccerStarNft, Ownable {
 
     function caculateBUSDAmount(uint bibAmount) public view returns(uint){
         // the price has ORACLE_PRECISION
-        uint priceDec = priceOracle.getAssetPrice(address(bibContract));
-        return bibAmount.mul(priceDec).div(ORACLE_PRECISION);
+        address[] memory path = new address[](2);
+        path[0] = address(bibContract);
+        path[1] = address(busdContract);
+        return router.getAmountsOut(bibAmount, path)[1];
     }
 
     function validOwnership(uint[] memory tokensToValid) internal view {
